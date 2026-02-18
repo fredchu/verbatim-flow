@@ -50,6 +50,10 @@ final class AppController {
         hotkey.display
     }
 
+    var currentHotkey: Hotkey {
+        hotkey
+    }
+
     var currentLocaleIdentifier: String {
         localeIdentifier
     }

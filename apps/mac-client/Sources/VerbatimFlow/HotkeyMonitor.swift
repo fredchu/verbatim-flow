@@ -8,6 +8,7 @@ final class HotkeyMonitor {
 
     private var keyDownMonitor: Any?
     private var keyUpMonitor: Any?
+    private var flagsChangedMonitor: Any?
     private var isPressed = false
 
     init(hotkey: Hotkey, onPressed: @escaping () -> Void, onReleased: @escaping () -> Void) {
@@ -24,6 +25,10 @@ final class HotkeyMonitor {
         keyUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyUp]) { [weak self] event in
             self?.handleKeyUp(event)
         }
+
+        flagsChangedMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.flagsChanged]) { [weak self] event in
+            self?.handleFlagsChanged(event)
+        }
     }
 
     deinit {
@@ -33,10 +38,17 @@ final class HotkeyMonitor {
         if let keyUpMonitor {
             NSEvent.removeMonitor(keyUpMonitor)
         }
+        if let flagsChangedMonitor {
+            NSEvent.removeMonitor(flagsChangedMonitor)
+        }
     }
 
     private func handleKeyDown(_ event: NSEvent) {
-        guard event.keyCode == hotkey.keyCode else {
+        guard let keyCode = hotkey.keyCode else {
+            return
+        }
+
+        guard event.keyCode == keyCode else {
             return
         }
 
@@ -53,7 +65,11 @@ final class HotkeyMonitor {
     }
 
     private func handleKeyUp(_ event: NSEvent) {
-        guard event.keyCode == hotkey.keyCode else {
+        guard let keyCode = hotkey.keyCode else {
+            return
+        }
+
+        guard event.keyCode == keyCode else {
             return
         }
 
@@ -62,5 +78,25 @@ final class HotkeyMonitor {
         }
         isPressed = false
         onReleased()
+    }
+
+    private func handleFlagsChanged(_ event: NSEvent) {
+        guard hotkey.keyCode == nil else {
+            return
+        }
+
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let requiredDown = flags.isSuperset(of: hotkey.modifiers)
+
+        if requiredDown && !isPressed {
+            isPressed = true
+            onPressed()
+            return
+        }
+
+        if !requiredDown && isPressed {
+            isPressed = false
+            onReleased()
+        }
     }
 }

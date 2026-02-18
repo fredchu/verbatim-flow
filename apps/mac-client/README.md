@@ -37,7 +37,7 @@ open "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-
 
 ## Flags
 - `--mode raw|format-only`
-- `--hotkey ctrl+shift+space` (supports aliases like `shift+option+space`, `shift+alt+space`)
+- `--hotkey ctrl+shift+space` (also supports modifier-only combos like `shift+option`, and aliases like `shift+alt`)
 - `--locale zh-Hans`
 - `--require-on-device`
 - `--dry-run`

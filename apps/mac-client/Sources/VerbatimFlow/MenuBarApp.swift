@@ -44,9 +44,9 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         action: #selector(setHotkeyCtrlShiftSpace),
         keyEquivalent: ""
     )
-    private lazy var hotkeyShiftOptionSpaceItem = NSMenuItem(
-        title: "Shift+Option+Space",
-        action: #selector(setHotkeyShiftOptionSpace),
+    private lazy var hotkeyShiftOptionItem = NSMenuItem(
+        title: "Shift+Option",
+        action: #selector(setHotkeyShiftOption),
         keyEquivalent: ""
     )
     private lazy var hotkeyCmdShiftSpaceItem = NSMenuItem(
@@ -186,12 +186,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         modeMenuItem.submenu = modeSubmenu
 
         hotkeyCtrlShiftSpaceItem.target = self
-        hotkeyShiftOptionSpaceItem.target = self
+        hotkeyShiftOptionItem.target = self
         hotkeyCmdShiftSpaceItem.target = self
 
         let hotkeySubmenu = NSMenu(title: "Hotkey")
         hotkeySubmenu.addItem(hotkeyCtrlShiftSpaceItem)
-        hotkeySubmenu.addItem(hotkeyShiftOptionSpaceItem)
+        hotkeySubmenu.addItem(hotkeyShiftOptionItem)
         hotkeySubmenu.addItem(hotkeyCmdShiftSpaceItem)
         hotkeyMenuItem.submenu = hotkeySubmenu
 
@@ -273,11 +273,18 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     }
 
     private func refreshHotkeyChecks() {
-        let display = controller.currentHotkeyDisplay.lowercased()
         hotkeyInfoItem.title = "Hotkey: \(controller.currentHotkeyDisplay)"
-        hotkeyCtrlShiftSpaceItem.state = display == "ctrl+shift+space" ? .on : .off
-        hotkeyShiftOptionSpaceItem.state = display == "shift+option+space" ? .on : .off
-        hotkeyCmdShiftSpaceItem.state = display == "cmd+shift+space" ? .on : .off
+        hotkeyCtrlShiftSpaceItem.state = isCurrentHotkey("ctrl+shift+space") ? .on : .off
+        hotkeyShiftOptionItem.state = isCurrentHotkey("shift+option") ? .on : .off
+        hotkeyCmdShiftSpaceItem.state = isCurrentHotkey("cmd+shift+space") ? .on : .off
+    }
+
+    private func isCurrentHotkey(_ combo: String) -> Bool {
+        guard let parsed = try? HotkeyParser.parse(combo: combo) else {
+            return false
+        }
+        return parsed.keyCode == controller.currentHotkey.keyCode &&
+            parsed.modifiers == controller.currentHotkey.modifiers
     }
 
     private func refreshLanguageChecks() {
@@ -375,8 +382,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     }
 
     @objc
-    private func setHotkeyShiftOptionSpace() {
-        setHotkeyCombo("shift+option+space")
+    private func setHotkeyShiftOption() {
+        setHotkeyCombo("shift+option")
     }
 
     @objc

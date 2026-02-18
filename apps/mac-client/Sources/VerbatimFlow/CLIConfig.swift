@@ -7,7 +7,7 @@ enum OutputMode: String {
 }
 
 struct Hotkey {
-    let keyCode: UInt16
+    let keyCode: UInt16?
     let modifiers: NSEvent.ModifierFlags
     let display: String
 
@@ -129,7 +129,7 @@ enum HelpPrinter {
             "verbatim-flow",
             "",
             "Usage:",
-            "  verbatim-flow [--mode raw|format-only] [--locale <id>] [--hotkey ctrl+shift+space] [--require-on-device] [--dry-run]",
+            "  verbatim-flow [--mode raw|format-only] [--locale <id>] [--hotkey ctrl+shift+space|shift+option] [--require-on-device] [--dry-run]",
             "",
             "Defaults:",
             "  --mode raw",
@@ -148,13 +148,16 @@ enum HotkeyParser {
             .lowercased()
             .split(separator: "+")
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
 
-        guard let keyToken = components.last, !keyToken.isEmpty else {
-            throw ConfigError.invalidValue("--hotkey", "like ctrl+shift+space")
+        guard !components.isEmpty else {
+            throw ConfigError.invalidValue("--hotkey", "like ctrl+shift+space or shift+option")
         }
 
         var modifiers: NSEvent.ModifierFlags = []
-        for token in components.dropLast() {
+        var primaryKeyCode: UInt16?
+
+        for token in components {
             switch token {
             case "cmd", "command":
                 modifiers.insert(.command)
@@ -165,15 +168,21 @@ enum HotkeyParser {
             case "shift":
                 modifiers.insert(.shift)
             default:
-                throw ConfigError.invalidValue("--hotkey", "unsupported modifier \(token)")
+                guard primaryKeyCode == nil else {
+                    throw ConfigError.invalidValue("--hotkey", "only one non-modifier key is supported")
+                }
+                guard let parsedKeyCode = keyCode(for: token) else {
+                    throw ConfigError.invalidValue("--hotkey", "unsupported key \(token)")
+                }
+                primaryKeyCode = parsedKeyCode
             }
         }
 
-        guard let keyCode = keyCode(for: keyToken) else {
-            throw ConfigError.invalidValue("--hotkey", "unsupported key \(keyToken)")
+        guard primaryKeyCode != nil || !modifiers.isEmpty else {
+            throw ConfigError.invalidValue("--hotkey", "at least one modifier or key is required")
         }
 
-        return Hotkey(keyCode: keyCode, modifiers: modifiers, display: combo)
+        return Hotkey(keyCode: primaryKeyCode, modifiers: modifiers, display: combo.lowercased())
     }
 
     private static func keyCode(for key: String) -> UInt16? {
