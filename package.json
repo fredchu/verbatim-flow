@@ -1,0 +1,11 @@
+{
+  "name": "verbatim-flow",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.4.1",
+  "scripts": {
+    "dev": "echo 'wire app dev script'",
+    "lint": "echo 'wire lint config'",
+    "test": "echo 'wire test runner'"
+  }
+}

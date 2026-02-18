@@ -1,0 +1,13 @@
+node_modules
+.DS_Store
+.env
+.env.*
+dist
+build
+coverage
+*.log
+apps/mac-client/python/.venv/
+apps/mac-client/python/__pycache__/
+apps/mac-client/python/**/*.pyc
+apps/mac-client/build/
+apps/mac-client/.build/
