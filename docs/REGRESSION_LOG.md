@@ -14,7 +14,9 @@
   - Add app-specific insertion policy: for `com.openai.codex*`, skip AX selected-text path and use deterministic `Cmd+V` fallback.
   - Keep AX path as default for normal editors.
 - Validation:
-  - Added unit tests for insertion policy mapping (`TextInjectorPolicyTests`).
+  - 2026-02-19 follow-up: forcing `Cmd+V` for Codex introduced a hard regression for some users.
+  - Final policy changed to `AX first -> Cmd+V fallback` for all non-terminal apps.
+  - Keep app-specific hardcoded insertion overrides disabled unless reproducible evidence exists.
 
 ## 2026-02-19: Cloud endpoint transport guard
 

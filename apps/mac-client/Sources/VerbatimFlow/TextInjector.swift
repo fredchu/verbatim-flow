@@ -52,11 +52,7 @@ final class TextInjector {
             return
         }
 
-        if Self.shouldPreferPasteFallback(for: frontmost?.bundleIdentifier) {
-            RuntimeLogger.log(
-                "[insert] skip accessibility path; paste fallback preferred for bundle=\(frontmost?.bundleIdentifier ?? "-")"
-            )
-        } else if tryInsertViaAccessibility(text: text) {
+        if tryInsertViaAccessibility(text: text) {
             RuntimeLogger.log("[insert] via accessibility selected text")
             return
         }
@@ -213,19 +209,5 @@ final class TextInjector {
         }
 
         return bundleIdentifier == "com.apple.Terminal" || bundleIdentifier == "com.googlecode.iterm2"
-    }
-
-    nonisolated static func shouldPreferPasteFallback(for bundleIdentifier: String?) -> Bool {
-        guard let bundleIdentifier else {
-            return false
-        }
-
-        // Some custom chat inputs report AX success but do not visibly mutate text.
-        // Prefer Cmd+V to keep insertion deterministic.
-        if bundleIdentifier == "com.openai.codex" || bundleIdentifier.hasPrefix("com.openai.codex.") {
-            return true
-        }
-
-        return false
     }
 }
