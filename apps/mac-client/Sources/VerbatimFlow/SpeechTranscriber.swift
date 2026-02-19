@@ -23,6 +23,7 @@ final class SpeechTranscriber {
 
     private var audioRecorder: AVAudioRecorder?
     private var recordedAudioURL: URL?
+    private var failedRecordingEntry: FailedRecordingStore.Entry?
 
     init(
         localeIdentifier: String,
@@ -38,6 +39,11 @@ final class SpeechTranscriber {
         self.whisperModel = whisperModel
         self.openAIModel = openAIModel
         self.whisperComputeType = whisperComputeType
+        self.failedRecordingEntry = FailedRecordingStore.load()
+    }
+
+    var hasFailedRecordingForRetry: Bool {
+        failedRecordingEntry != nil
     }
 
     func ensurePermissions() async -> Bool {
@@ -72,6 +78,65 @@ final class SpeechTranscriber {
         case .openai:
             return try await stopOpenAIRecording()
         }
+    }
+
+    func retryLastFailedRecording() async throws -> String {
+        guard let entry = failedRecordingEntry else {
+            throw AppError.retryAudioUnavailable
+        }
+
+        guard let engine = entry.recognitionEngine else {
+            FailedRecordingStore.clear()
+            failedRecordingEntry = nil
+            throw AppError.retryAudioUnavailable
+        }
+
+        let transcript: String
+        switch engine {
+        case .apple:
+            throw AppError.retryAudioUnsupportedEngine(engine.rawValue)
+        case .whisper:
+            let model = entry.whisperModel ?? .small
+            let computeType = entry.whisperComputeType
+            let languageCode = Self.whisperLanguageCode(from: entry.localeIdentifier)
+            transcript = try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let text = try Self.transcribeWhisperAudioFile(
+                            audioURL: entry.audioFileURL,
+                            model: model.rawValue,
+                            computeType: computeType,
+                            languageCode: languageCode
+                        )
+                        continuation.resume(returning: text)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        case .openai:
+            let model = entry.openAIModel?.rawValue
+            let languageCode = Self.whisperLanguageCode(from: entry.localeIdentifier)
+            transcript = try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let text = try Self.transcribeOpenAIAudioFile(
+                            audioURL: entry.audioFileURL,
+                            languageCode: languageCode,
+                            modelOverride: model
+                        )
+                        continuation.resume(returning: text)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        }
+
+        FailedRecordingStore.clear()
+        failedRecordingEntry = nil
+        RuntimeLogger.log("[retry-audio] retry succeeded and failed recording was cleared")
+        return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func startAppleSpeechRecording() throws {
@@ -181,11 +246,8 @@ final class SpeechTranscriber {
         audioRecorder = nil
         recordedAudioURL = nil
 
-        defer {
-            try? FileManager.default.removeItem(at: recordingURL)
-        }
-
         if durationSec < 0.18 {
+            try? FileManager.default.removeItem(at: recordingURL)
             return ""
         }
 
@@ -193,23 +255,28 @@ final class SpeechTranscriber {
         let computeType = whisperComputeType
         let languageCode = Self.whisperLanguageCode(from: localeIdentifier)
 
-        let transcript = try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let text = try Self.transcribeWhisperAudioFile(
-                        audioURL: recordingURL,
-                        model: model,
-                        computeType: computeType,
-                        languageCode: languageCode
-                    )
-                    continuation.resume(returning: text)
-                } catch {
-                    continuation.resume(throwing: error)
+        do {
+            let transcript = try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let text = try Self.transcribeWhisperAudioFile(
+                            audioURL: recordingURL,
+                            model: model,
+                            computeType: computeType,
+                            languageCode: languageCode
+                        )
+                        continuation.resume(returning: text)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
+            try? FileManager.default.removeItem(at: recordingURL)
+            return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            persistFailedRecording(audioURL: recordingURL, durationSec: durationSec)
+            throw error
         }
-
-        return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func stopOpenAIRecording() async throws -> String {
@@ -223,32 +290,55 @@ final class SpeechTranscriber {
         audioRecorder = nil
         recordedAudioURL = nil
 
-        defer {
-            try? FileManager.default.removeItem(at: recordingURL)
-        }
-
         if durationSec < 0.18 {
+            try? FileManager.default.removeItem(at: recordingURL)
             return ""
         }
 
         let languageCode = Self.whisperLanguageCode(from: localeIdentifier)
         let selectedModel = openAIModel.rawValue
-        let transcript = try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let text = try Self.transcribeOpenAIAudioFile(
-                        audioURL: recordingURL,
-                        languageCode: languageCode,
-                        modelOverride: selectedModel
-                    )
-                    continuation.resume(returning: text)
-                } catch {
-                    continuation.resume(throwing: error)
+        do {
+            let transcript = try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let text = try Self.transcribeOpenAIAudioFile(
+                            audioURL: recordingURL,
+                            languageCode: languageCode,
+                            modelOverride: selectedModel
+                        )
+                        continuation.resume(returning: text)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
+            try? FileManager.default.removeItem(at: recordingURL)
+            return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            persistFailedRecording(audioURL: recordingURL, durationSec: durationSec)
+            throw error
         }
+    }
 
-        return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func persistFailedRecording(audioURL: URL, durationSec: TimeInterval) {
+        let entry = FailedRecordingStore.save(
+            sourceAudioURL: audioURL,
+            recognitionEngine: recognitionEngine,
+            localeIdentifier: localeIdentifier,
+            whisperModel: whisperModel,
+            whisperComputeType: whisperComputeType,
+            openAIModel: openAIModel,
+            durationSeconds: durationSec
+        )
+        if let entry {
+            failedRecordingEntry = entry
+            RuntimeLogger.log(
+                "[retry-audio] persisted failed recording path=\(entry.audioFileURL.path) engine=\(entry.recognitionEngineRawValue) durationSec=\(String(format: "%.2f", entry.durationSeconds))"
+            )
+        } else {
+            try? FileManager.default.removeItem(at: audioURL)
+            RuntimeLogger.log("[retry-audio] failed to persist failed recording; original audio removed")
+        }
     }
 
     private nonisolated static func makeRecordedAudioURL() -> URL {

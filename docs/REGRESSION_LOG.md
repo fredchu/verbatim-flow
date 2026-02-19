@@ -46,6 +46,19 @@
   - Do not rely on a single signal source for modifier-only hotkeys.
   - Any future hotkey refactor must preserve a watchdog fallback path independent from event callbacks.
 
+## 2026-02-19: Failed-transcription recovery baseline
+
+- Feature:
+  - Persist last failed recording for retry without re-speaking.
+- Storage:
+  - `~/Library/Application Support/VerbatimFlow/FailedRecordings/last_failed_recording.m4a`
+  - `~/Library/Application Support/VerbatimFlow/FailedRecordings/last_failed_recording.json`
+- Recovery action:
+  - Menu: `Recent transcripts -> Retry Last Failed Audio`
+- Clear policy:
+  - New failure overwrites previous failed recording.
+  - Successful retry clears both audio and metadata.
+
 ## Manual regression checklist (before release)
 
 - Permissions:

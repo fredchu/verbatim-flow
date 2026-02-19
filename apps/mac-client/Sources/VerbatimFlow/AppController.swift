@@ -46,6 +46,7 @@ final class AppController {
     var onLog: ((String) -> Void)?
     var onTranscriptCommitted: ((String) -> Void)?
     var onPermissionSnapshot: ((PermissionSnapshot) -> Void)?
+    var onRetriableAudioAvailabilityChanged: ((Bool) -> Void)?
 
     init(config: CLIConfig) {
         self.localeIdentifier = config.localeIdentifier
@@ -99,6 +100,14 @@ final class AppController {
         hotkeyMonitor != nil
     }
 
+    var hasRetriableAudio: Bool {
+        transcriber.hasFailedRecordingForRetry
+    }
+
+    var canRetryLastFailedAudio: Bool {
+        runtimeState == .ready && !isRecording && hasRetriableAudio
+    }
+
     func start() {
         guard hotkeyMonitor == nil else {
             return
@@ -147,6 +156,7 @@ final class AppController {
         hotkeyMonitor?.start()
         runtimeState = .ready
         emit("[ready] Waiting for hotkey: \(hotkey.display)")
+        notifyRetriableAudioAvailabilityChanged()
     }
 
     func stop() {
@@ -323,6 +333,43 @@ final class AppController {
         }
     }
 
+    func retryLastFailedAudio() {
+        guard runtimeState == .ready else {
+            emit("[warn] wait until current operation completes before retry")
+            return
+        }
+
+        guard !isRecording else {
+            emit("[warn] stop recording before retrying failed audio")
+            return
+        }
+
+        guard hasRetriableAudio else {
+            emit("[warn] no failed recording available for retry")
+            notifyRetriableAudioAvailabilityChanged()
+            return
+        }
+
+        runtimeState = .processing
+        let retryTarget = capturePendingInsertTarget() ?? lastSuccessfulInsertTarget
+        emit("[retry-audio] retrying last failed recording...")
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.runtimeState = .ready
+                self.notifyRetriableAudioAvailabilityChanged()
+            }
+
+            do {
+                let raw = try await self.transcriber.retryLastFailedRecording()
+                self.commitTranscript(raw, preferredTarget: retryTarget)
+            } catch {
+                self.emit("[error] Retry last audio failed: \(error)")
+            }
+        }
+    }
+
     private func stopInternal(emitLog: Bool) {
         hotkeyMonitor = nil
 
@@ -397,16 +444,34 @@ final class AppController {
         do {
             raw = try await transcriber.stopRecording()
         } catch {
+            if transcriber.hasFailedRecordingForRetry {
+                emit("[retry-audio] transcription failed; audio saved for retry")
+            }
+            notifyRetriableAudioAvailabilityChanged()
             pendingInsertTarget = nil
             emit("[error] Failed to transcribe audio: \(error)")
             runtimeState = .ready
             return
         }
+        commitTranscript(raw, preferredTarget: pendingInsertTarget)
+        pendingInsertTarget = nil
+        runtimeState = .ready
+        notifyRetriableAudioAvailabilityChanged()
+    }
+
+    private func emit(_ message: String) {
+        RuntimeLogger.log(message)
+        onLog?(message)
+    }
+
+    private func notifyRetriableAudioAvailabilityChanged() {
+        onRetriableAudioAvailabilityChanged?(hasRetriableAudio)
+    }
+
+    private func commitTranscript(_ raw: String, preferredTarget: PendingInsertTarget?) {
         let guarded = TextGuard(mode: mode).apply(raw: raw)
         guard !guarded.text.isEmpty else {
-            pendingInsertTarget = nil
             emit("[skip] Empty transcript")
-            runtimeState = .ready
             return
         }
 
@@ -422,9 +487,7 @@ final class AppController {
         )
         let finalText = mixedEnhancement.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !finalText.isEmpty else {
-            pendingInsertTarget = nil
             emit("[skip] Empty transcript after terminology normalization")
-            runtimeState = .ready
             return
         }
 
@@ -443,21 +506,12 @@ final class AppController {
 
         if dryRun {
             emit("[dry-run] \(finalText)")
-            pendingInsertTarget = nil
-            runtimeState = .ready
             return
         }
 
         do {
-            let preferredTarget = pendingInsertTarget.map { target in
-                TextInjector.InsertionTarget(
-                    processIdentifier: target.processIdentifier,
-                    bundleIdentifier: target.bundleIdentifier,
-                    localizedName: target.localizedName
-                )
-            }
-            try injector.insert(text: finalText, preferredTarget: preferredTarget)
-            lastSuccessfulInsertTarget = pendingInsertTarget ?? capturePendingInsertTarget()
+            try injector.insert(text: finalText, preferredTarget: injectorTarget(from: preferredTarget))
+            lastSuccessfulInsertTarget = preferredTarget ?? capturePendingInsertTarget()
             emit("[inserted] \(finalText)")
         } catch {
             if let appError = error as? AppError, case .accessibilityPermissionRequired = appError {
@@ -465,14 +519,17 @@ final class AppController {
             }
             emit("[error] Failed to inject text: \(error)")
         }
-        pendingInsertTarget = nil
-
-        runtimeState = .ready
     }
 
-    private func emit(_ message: String) {
-        RuntimeLogger.log(message)
-        onLog?(message)
+    private func injectorTarget(from pendingTarget: PendingInsertTarget?) -> TextInjector.InsertionTarget? {
+        guard let pendingTarget else {
+            return nil
+        }
+        return TextInjector.InsertionTarget(
+            processIdentifier: pendingTarget.processIdentifier,
+            bundleIdentifier: pendingTarget.bundleIdentifier,
+            localizedName: pendingTarget.localizedName
+        )
     }
 
     private func rebuildTranscriber() {
@@ -484,6 +541,7 @@ final class AppController {
             openAIModel: openAIModel,
             whisperComputeType: whisperComputeType
         )
+        notifyRetriableAudioAvailabilityChanged()
     }
 
     private func capturePendingInsertTarget() -> PendingInsertTarget? {

@@ -20,6 +20,7 @@ The app runs as a menu bar item (`VF`). Most controls are grouped under a unifie
 - Change hotkey presets in-app
 - Access recent transcript history
 - Use `Copy + Undo Last Insert` for one-click rollback
+- Retry the last failed audio transcription without re-speaking
 - Open Accessibility and Microphone permission pages
 - Open OpenAI cloud settings file
 

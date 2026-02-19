@@ -154,6 +154,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         action: #selector(copyAndRollbackLatestTranscript),
         keyEquivalent: ""
     )
+    private lazy var retryLastFailedAudioItem = NSMenuItem(
+        title: "Retry Last Failed Audio",
+        action: #selector(retryLastFailedAudio),
+        keyEquivalent: ""
+    )
 
     private lazy var requestPermissionsItem = NSMenuItem(
         title: "Request Mic/Speech Permission",
@@ -350,6 +355,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
         copyLatestTranscriptItem.target = self
         copyAndRollbackItem.target = self
+        retryLastFailedAudioItem.target = self
         recentMenuItem.submenu = recentSubmenu
 
         requestPermissionsItem.target = self
@@ -403,14 +409,20 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func bindControllerCallbacks() {
         controller.onStateChanged = { [weak self] state in
             self?.applyRuntimeState(state)
+            self?.refreshRecentTranscriptMenu()
         }
 
         controller.onLog = { [weak self] message in
             self?.lastEventItem.title = "Last event: \(message)"
+            self?.refreshRecentTranscriptMenu()
         }
 
         controller.onTranscriptCommitted = { [weak self] text in
             self?.appendRecentTranscript(text)
+        }
+
+        controller.onRetriableAudioAvailabilityChanged = { [weak self] _ in
+            self?.refreshRecentTranscriptMenu()
         }
 
         controller.onPermissionSnapshot = { [weak self] snapshot in
@@ -505,11 +517,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
         recentSubmenu.addItem(copyLatestTranscriptItem)
         recentSubmenu.addItem(copyAndRollbackItem)
+        recentSubmenu.addItem(retryLastFailedAudioItem)
         recentSubmenu.addItem(NSMenuItem.separator())
 
         let hasRecent = !recentTranscripts.isEmpty
         copyLatestTranscriptItem.isEnabled = hasRecent
         copyAndRollbackItem.isEnabled = hasRecent
+        retryLastFailedAudioItem.isEnabled = controller.canRetryLastFailedAudio
 
         guard hasRecent else {
             let emptyItem = NSMenuItem(title: "No transcripts yet", action: nil, keyEquivalent: "")
@@ -724,6 +738,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
             return
         }
         controller.copyAndUndoLastInsert(latest.text)
+    }
+
+    @objc
+    private func retryLastFailedAudio() {
+        controller.retryLastFailedAudio()
     }
 
     @objc

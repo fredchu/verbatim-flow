@@ -94,7 +94,7 @@
 ## 2026-02-19 - Execution Todo (Locked Order)
 
 ### Current plan
-- [ ] Todo 1 (P1): Long dictation fault tolerance
+- [x] Todo 1 (P1): Long dictation fault tolerance
   - Keep last recording for retry when transcription fails.
   - Add `Retry last audio` action.
   - Add failed-audio persistence path and clear policy.
@@ -116,3 +116,16 @@
   - Permissions status remains healthy after rebuild/relaunch.
 - Rule:
   - Do not start next todo until current todo passes this gate and is logged in `docs/REGRESSION_LOG.md`.
+
+### Todo 1 implementation note
+- Added failed-recording persistence:
+  - Path: `~/Library/Application Support/VerbatimFlow/FailedRecordings/last_failed_recording.m4a`
+  - Metadata: `~/Library/Application Support/VerbatimFlow/FailedRecordings/last_failed_recording.json`
+- Added menu action:
+  - `Recent transcripts -> Retry Last Failed Audio`
+- Clear policy:
+  - Overwrite previous failed audio when a new failure happens.
+  - Automatically clear failed audio + metadata after successful retry.
+- Verification:
+  - Automated gate passed (`swift test`).
+  - Manual smoke pending user-side interactive validation.
