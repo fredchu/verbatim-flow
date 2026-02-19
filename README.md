@@ -57,7 +57,7 @@ cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-fl
 open "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-flow/apps/mac-client/dist/VerbatimFlow.app"
 ```
 
-The build script applies a fixed ad-hoc signature (`com.axtonliu.verbatimflow`) so permissions are tied to a stable app identity.
+The build script signs with a stable designated requirement (`identifier "com.axtonliu.verbatimflow"`), so Accessibility/Input Monitoring permissions do not invalidate on each rebuild.
 
 Restart native app (kills stale processes first):
 ```bash

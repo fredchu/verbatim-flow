@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import ApplicationServices
 import Foundation
@@ -12,6 +13,12 @@ enum RuntimeState: Equatable {
 
 @MainActor
 final class AppController {
+    private struct PendingInsertTarget {
+        let processIdentifier: pid_t
+        let bundleIdentifier: String?
+        let localizedName: String?
+    }
+
     private(set) var localeIdentifier: String
 
     private let requireOnDeviceRecognition: Bool
@@ -23,6 +30,8 @@ final class AppController {
     private var mode: OutputMode
     private var hotkeyMonitor: HotkeyMonitor?
     private var isRecording = false
+    private var pendingInsertTarget: PendingInsertTarget?
+    private var lastSuccessfulInsertTarget: PendingInsertTarget?
     private(set) var runtimeState: RuntimeState = .stopped {
         didSet {
             onStateChanged?(runtimeState)
@@ -229,7 +238,14 @@ final class AppController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
             guard let self else { return }
             do {
-                try self.injector.undoLastInsert()
+                let preferredTarget = self.lastSuccessfulInsertTarget.map { target in
+                    TextInjector.InsertionTarget(
+                        processIdentifier: target.processIdentifier,
+                        bundleIdentifier: target.bundleIdentifier,
+                        localizedName: target.localizedName
+                    )
+                }
+                try self.injector.undoLastInsert(preferredTarget: preferredTarget)
                 self.emit("[rollback] copied transcript and sent undo")
             } catch {
                 self.emit("[error] rollback failed: \(error)")
@@ -265,9 +281,11 @@ final class AppController {
         }
 
         emit("[hotkey] pressed")
+        pendingInsertTarget = capturePendingInsertTarget()
 
         let permissionsGranted = await transcriber.ensurePermissions()
         guard permissionsGranted else {
+            pendingInsertTarget = nil
             emit("[error] Speech/Microphone permission denied.")
             onPermissionSnapshot?(currentPermissionSnapshot())
             return
@@ -279,6 +297,7 @@ final class AppController {
             runtimeState = .recording
             emit("[recording] Speak now...")
         } catch {
+            pendingInsertTarget = nil
             emit("[error] Failed to start recording: \(error)")
             runtimeState = .ready
         }
@@ -303,6 +322,7 @@ final class AppController {
         let raw = await transcriber.stopRecording()
         let guarded = TextGuard(mode: mode).apply(raw: raw)
         guard !guarded.text.isEmpty else {
+            pendingInsertTarget = nil
             emit("[skip] Empty transcript")
             runtimeState = .ready
             return
@@ -316,16 +336,29 @@ final class AppController {
 
         if dryRun {
             emit("[dry-run] \(guarded.text)")
+            pendingInsertTarget = nil
             runtimeState = .ready
             return
         }
 
         do {
-            try injector.insert(text: guarded.text)
+            let preferredTarget = pendingInsertTarget.map { target in
+                TextInjector.InsertionTarget(
+                    processIdentifier: target.processIdentifier,
+                    bundleIdentifier: target.bundleIdentifier,
+                    localizedName: target.localizedName
+                )
+            }
+            try injector.insert(text: guarded.text, preferredTarget: preferredTarget)
+            lastSuccessfulInsertTarget = pendingInsertTarget ?? capturePendingInsertTarget()
             emit("[inserted] \(guarded.text)")
         } catch {
+            if let appError = error as? AppError, case .accessibilityPermissionRequired = appError {
+                emit("[error] Accessibility permission missing/stale. Re-enable VerbatimFlow in Privacy & Security > Accessibility.")
+            }
             emit("[error] Failed to inject text: \(error)")
         }
+        pendingInsertTarget = nil
 
         runtimeState = .ready
     }
@@ -333,6 +366,28 @@ final class AppController {
     private func emit(_ message: String) {
         RuntimeLogger.log(message)
         onLog?(message)
+    }
+
+    private func capturePendingInsertTarget() -> PendingInsertTarget? {
+        guard let frontmost = NSWorkspace.shared.frontmostApplication else {
+            RuntimeLogger.log("[insert-target] no frontmost application found on hotkey press")
+            return nil
+        }
+
+        if frontmost.processIdentifier == ProcessInfo.processInfo.processIdentifier {
+            RuntimeLogger.log("[insert-target] frontmost app is VerbatimFlow; skip capture")
+            return nil
+        }
+
+        let target = PendingInsertTarget(
+            processIdentifier: frontmost.processIdentifier,
+            bundleIdentifier: frontmost.bundleIdentifier,
+            localizedName: frontmost.localizedName
+        )
+        RuntimeLogger.log(
+            "[insert-target] captured pid=\(target.processIdentifier) bundle=\(target.bundleIdentifier ?? "-") name=\(target.localizedName ?? "-")"
+        )
+        return target
     }
 
     private func mapSpeechStatus(_ status: SFSpeechRecognizerAuthorizationStatus) -> PermissionState {

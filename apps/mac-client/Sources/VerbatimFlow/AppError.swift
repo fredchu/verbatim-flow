@@ -5,6 +5,7 @@ enum AppError: Error, CustomStringConvertible {
     case speechServiceUnavailable
     case eventSourceCreationFailed
     case eventCreationFailed
+    case accessibilityPermissionRequired
 
     var description: String {
         switch self {
@@ -16,6 +17,8 @@ enum AppError: Error, CustomStringConvertible {
             return "Failed to create event source"
         case .eventCreationFailed:
             return "Failed to create keyboard event"
+        case .accessibilityPermissionRequired:
+            return "Accessibility permission is required for text injection"
         }
     }
 }

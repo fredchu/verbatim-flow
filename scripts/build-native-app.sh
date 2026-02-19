@@ -51,10 +51,21 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
 </plist>
 PLIST
 
-# Remove Finder metadata and apply deterministic ad-hoc signature
-# so TCC can consistently identify this bundle.
+# Remove Finder metadata and apply ad-hoc signature with a stable
+# designated requirement (bundle identifier based, not cdhash).
+# This prevents Accessibility/Input Monitoring permissions from being
+# invalidated on every rebuild.
 xattr -cr "$APP_BUNDLE"
-codesign --force --deep --sign - --identifier "com.axtonliu.verbatimflow" "$APP_BUNDLE"
+codesign \
+  --force \
+  --deep \
+  --sign - \
+  --identifier "com.axtonliu.verbatimflow" \
+  --requirements '=designated => identifier "com.axtonliu.verbatimflow"' \
+  "$APP_BUNDLE"
+
+echo "[info] signature requirement:"
+codesign -d -r- "$APP_BUNDLE" 2>&1 | tail -n 1
 
 echo "[ok] Built app bundle: $APP_BUNDLE"
 echo "[hint] Launch with: open '$APP_BUNDLE'"

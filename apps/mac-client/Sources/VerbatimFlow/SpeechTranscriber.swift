@@ -48,6 +48,8 @@ final class SpeechTranscriber {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = requireOnDeviceRecognition
+        request.taskHint = .dictation
+        request.contextualStrings = contextualHints(for: localeIdentifier)
         recognitionRequest = request
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
@@ -281,5 +283,28 @@ final class SpeechTranscriber {
         @unknown default:
             return "unknown"
         }
+    }
+
+    private func contextualHints(for localeIdentifier: String) -> [String] {
+        let techTerms = [
+            "Release",
+            "Token",
+            "Context",
+            "Prompt",
+            "Workflow",
+            "Git",
+            "Mac",
+            "Whisper",
+            "VerbatimFlow",
+            "Raycast",
+            "Wispr",
+            "Tabless",
+            "Typeless"
+        ]
+
+        if localeIdentifier.lowercased().hasPrefix("zh") {
+            return techTerms + ["中文", "英文", "中英文混合", "识别准确率", "剪贴板", "文本框", "插入"]
+        }
+        return techTerms
     }
 }

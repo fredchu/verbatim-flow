@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import Foundation
 
 @MainActor
@@ -632,13 +633,50 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         if hasCLIFlag("--locale") {
             return config.localeIdentifier
         }
-        return preferences.loadLanguageSelection() ?? config.localeIdentifier
+        return preferences.loadLanguageSelection() ?? AppPreferences.systemLanguageToken
     }
 
     private static func localeIdentifier(forSelection selection: String) -> String {
         if selection == AppPreferences.systemLanguageToken {
-            return Locale.autoupdatingCurrent.identifier
+            return recommendedSystemLocaleIdentifier()
         }
         return selection
+    }
+
+    private static func recommendedSystemLocaleIdentifier() -> String {
+        if let inputSourceLanguage = currentInputSourceLanguageCode() {
+            return mappedLocaleIdentifier(forLanguageCode: inputSourceLanguage)
+        }
+
+        if let preferred = Locale.preferredLanguages.first {
+            return mappedLocaleIdentifier(forLanguageCode: preferred)
+        }
+
+        return Locale.autoupdatingCurrent.identifier
+    }
+
+    private static func currentInputSourceLanguageCode() -> String? {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else {
+            return nil
+        }
+        guard let languages = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages) else {
+            return nil
+        }
+        let array = Unmanaged<CFArray>.fromOpaque(languages).takeUnretainedValue() as NSArray
+        return array.firstObject as? String
+    }
+
+    private static func mappedLocaleIdentifier(forLanguageCode code: String) -> String {
+        let lowercased = code.lowercased()
+        if lowercased.hasPrefix("zh-hant") || lowercased.hasPrefix("zh-tw") || lowercased.hasPrefix("zh-hk") {
+            return "zh-Hant"
+        }
+        if lowercased.hasPrefix("zh") {
+            return "zh-Hans"
+        }
+        if lowercased.hasPrefix("en") {
+            return "en-US"
+        }
+        return code
     }
 }
