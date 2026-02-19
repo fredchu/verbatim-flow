@@ -48,6 +48,9 @@ final class SpeechTranscriber {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = requireOnDeviceRecognition
+        if #available(macOS 13.0, *) {
+            request.addsPunctuation = true
+        }
         request.taskHint = .dictation
         request.contextualStrings = contextualHints(for: localeIdentifier)
         recognitionRequest = request
@@ -287,6 +290,11 @@ final class SpeechTranscriber {
 
     private func contextualHints(for localeIdentifier: String) -> [String] {
         let techTerms = [
+            "Commit",
+            "Branch",
+            "Repository",
+            "Pull Request",
+            "PR",
             "Release",
             "Token",
             "Context",
@@ -303,7 +311,19 @@ final class SpeechTranscriber {
         ]
 
         if localeIdentifier.lowercased().hasPrefix("zh") {
-            return techTerms + ["中文", "英文", "中英文混合", "识别准确率", "剪贴板", "文本框", "插入"]
+            return techTerms + [
+                "中文",
+                "英文",
+                "中英文混合",
+                "识别准确率",
+                "剪贴板",
+                "文本框",
+                "插入",
+                "提交",
+                "分支",
+                "仓库",
+                "拉取请求"
+            ]
         }
         return techTerms
     }
