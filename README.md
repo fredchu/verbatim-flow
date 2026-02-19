@@ -55,3 +55,5 @@ cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-fl
 ./scripts/build-native-app.sh
 open "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-flow/apps/mac-client/dist/VerbatimFlow.app"
 ```
+
+The build script applies a fixed ad-hoc signature (`com.axtonliu.verbatimflow`) so permissions are tied to a stable app identity.

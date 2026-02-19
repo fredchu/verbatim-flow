@@ -127,6 +127,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     private var recentTranscripts: [TranscriptEntry] = []
     private var shouldShowPermissionAlertOnNextSnapshot = false
+    private var permissionRequestFallbackWorkItem: DispatchWorkItem?
     private let transcriptDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -263,6 +264,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         }
 
         controller.onPermissionSnapshot = { [weak self] snapshot in
+            self?.permissionRequestFallbackWorkItem?.cancel()
             self?.refreshPermissionStatus(snapshot)
             if self?.shouldShowPermissionAlertOnNextSnapshot == true {
                 self?.shouldShowPermissionAlertOnNextSnapshot = false
@@ -480,9 +482,22 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     @objc
     private func requestPermissions() {
+        permissionRequestFallbackWorkItem?.cancel()
         refreshPermissionStatus(controller.currentPermissionSnapshot())
         shouldShowPermissionAlertOnNextSnapshot = true
         controller.requestSpeechAndMicrophonePermissions()
+
+        let fallback = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            guard self.shouldShowPermissionAlertOnNextSnapshot else { return }
+            self.shouldShowPermissionAlertOnNextSnapshot = false
+            let snapshot = self.controller.currentPermissionSnapshot()
+            self.refreshPermissionStatus(snapshot)
+            self.lastEventItem.title = "Last event: [permissions] request timed out; check system settings"
+            self.presentPermissionAlert(snapshot)
+        }
+        permissionRequestFallbackWorkItem = fallback
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: fallback)
     }
 
     @objc

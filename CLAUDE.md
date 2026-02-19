@@ -51,6 +51,10 @@ Build a controllable dictation stack that can rival tools like Typeless/Wispr in
 **Decision**: Add visible menu bar runtime indicator (`VF`, `VF●`, `VF…`, `VF⏸`), explicit hotkey press/release logs, and permission snapshot reporting with in-app alert on request.
 **Reason**: Users need immediate confirmation that hotkeys are firing and clear diagnostics when permissions block recording.
 
+### [Deterministic app signing for permission stability] (2026-02-18)
+**Decision**: Re-sign packaged `.app` with fixed identifier `com.axtonliu.verbatimflow` in `build-native-app.sh`.
+**Reason**: Unsafely wrapped binaries can appear granted in settings but still fail runtime permission checks due unstable process identity.
+
 ## Next implementation target
 - Implement a minimal vertical slice:
   - push-to-talk hotkey

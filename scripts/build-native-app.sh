@@ -53,5 +53,10 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
 </plist>
 PLIST
 
+# Remove Finder metadata and apply deterministic ad-hoc signature
+# so TCC can consistently identify this bundle.
+xattr -cr "$APP_BUNDLE"
+codesign --force --deep --sign - --identifier "com.axtonliu.verbatimflow" "$APP_BUNDLE"
+
 echo "[ok] Built app bundle: $APP_BUNDLE"
 echo "[hint] Launch with: open '$APP_BUNDLE'"

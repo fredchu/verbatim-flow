@@ -42,6 +42,8 @@ cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-fl
 open "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-flow/apps/mac-client/dist/VerbatimFlow.app"
 ```
 
+`build-native-app.sh` now applies a fixed ad-hoc signature (`com.axtonliu.verbatimflow`) after packaging to keep macOS permission identity consistent.
+
 ## Flags
 - `--mode raw|format-only`
 - `--hotkey ctrl+shift+space` (also supports modifier-only combos like `shift+option`, and aliases like `shift+alt`)

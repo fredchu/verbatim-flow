@@ -106,6 +106,12 @@ final class AppController {
 
     func requestSpeechAndMicrophonePermissions() {
         Task { @MainActor in
+            emit("[permissions] requesting access...")
+            let accessibilityTrusted = injector.promptAccessibilityIfNeeded()
+            if !accessibilityTrusted {
+                emit("[permissions] Accessibility not granted yet")
+            }
+
             _ = await transcriber.ensurePermissions()
             let snapshot = currentPermissionSnapshot()
             emit("[permissions] \(snapshot.summaryLine)")
