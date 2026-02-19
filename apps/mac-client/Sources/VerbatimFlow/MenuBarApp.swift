@@ -277,7 +277,9 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         guard let button = statusItem.button else { return }
-        button.title = "VF"
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
+        applyStatusIcon(symbolName: "waveform.circle", fallbackText: "VF")
         button.toolTip = "VerbatimFlow"
         statusItem.menu = menu
     }
@@ -441,20 +443,36 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         case .stopped:
             stateMenuItem.title = "State: Stopped"
             toggleMenuItem.title = "Resume Hotkey"
-            statusItem.button?.title = "VF⏸"
+            applyStatusIcon(symbolName: "pause.circle", fallbackText: "VF⏸")
         case .ready:
             stateMenuItem.title = "State: Ready"
             toggleMenuItem.title = "Pause Hotkey"
-            statusItem.button?.title = "VF"
+            applyStatusIcon(symbolName: "waveform.circle", fallbackText: "VF")
         case .recording:
             stateMenuItem.title = "State: Recording"
             toggleMenuItem.title = "Pause Hotkey"
-            statusItem.button?.title = "VF●"
+            applyStatusIcon(symbolName: "mic.circle.fill", fallbackText: "VF●")
         case .processing:
             stateMenuItem.title = "State: Processing"
             toggleMenuItem.title = "Pause Hotkey"
-            statusItem.button?.title = "VF…"
+            applyStatusIcon(symbolName: "hourglass.circle", fallbackText: "VF…")
         }
+    }
+
+    private func applyStatusIcon(symbolName: String, fallbackText: String) {
+        guard let button = statusItem.button else { return }
+        let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
+        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "VerbatimFlow status")?
+            .withSymbolConfiguration(configuration) {
+            image.isTemplate = true
+            button.image = image
+            button.title = ""
+            return
+        }
+
+        // Fallback for environments where SF Symbols are unavailable.
+        button.image = nil
+        button.title = fallbackText
     }
 
     private func refreshModeChecks() {
