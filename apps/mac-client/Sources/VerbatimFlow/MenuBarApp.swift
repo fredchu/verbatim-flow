@@ -74,6 +74,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     )
 
     private let lastEventItem = NSMenuItem(title: "Last event: -", action: nil, keyEquivalent: "")
+    private let permissionStatusItem = NSMenuItem(title: "Permissions: Checking...", action: nil, keyEquivalent: "")
 
     private let recentMenuItem = NSMenuItem(title: "Recent transcripts", action: nil, keyEquivalent: "")
     private let recentSubmenu = NSMenu(title: "Recent transcripts")
@@ -106,6 +107,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         keyEquivalent: ""
     )
 
+    private lazy var openSpeechItem = NSMenuItem(
+        title: "Open Speech Recognition Settings",
+        action: #selector(openSpeechRecognitionSettings),
+        keyEquivalent: ""
+    )
+
     private lazy var openInputMonitoringItem = NSMenuItem(
         title: "Open Input Monitoring Settings",
         action: #selector(openInputMonitoringSettings),
@@ -119,6 +126,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     )
 
     private var recentTranscripts: [TranscriptEntry] = []
+    private var shouldShowPermissionAlertOnNextSnapshot = false
     private let transcriptDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -156,6 +164,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         refreshHotkeyChecks()
         refreshLanguageChecks()
         refreshRecentTranscriptMenu()
+        refreshPermissionStatus(controller.currentPermissionSnapshot())
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -174,6 +183,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         hotkeyInfoItem.isEnabled = false
         languageInfoItem.isEnabled = false
         lastEventItem.isEnabled = false
+        permissionStatusItem.isEnabled = false
 
         toggleMenuItem.target = self
 
@@ -212,12 +222,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         requestPermissionsItem.target = self
         openAccessibilityItem.target = self
         openMicItem.target = self
+        openSpeechItem.target = self
         openInputMonitoringItem.target = self
 
         quitItem.target = self
 
         menu.addItem(stateMenuItem)
         menu.addItem(lastEventItem)
+        menu.addItem(permissionStatusItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(toggleMenuItem)
         menu.addItem(modeMenuItem)
@@ -232,6 +244,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         menu.addItem(openAccessibilityItem)
         menu.addItem(openInputMonitoringItem)
         menu.addItem(openMicItem)
+        menu.addItem(openSpeechItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(quitItem)
     }
@@ -248,6 +261,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         controller.onTranscriptCommitted = { [weak self] text in
             self?.appendRecentTranscript(text)
         }
+
+        controller.onPermissionSnapshot = { [weak self] snapshot in
+            self?.refreshPermissionStatus(snapshot)
+            if self?.shouldShowPermissionAlertOnNextSnapshot == true {
+                self?.shouldShowPermissionAlertOnNextSnapshot = false
+                self?.presentPermissionAlert(snapshot)
+            }
+        }
     }
 
     private func applyRuntimeState(_ state: RuntimeState) {
@@ -255,15 +276,19 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         case .stopped:
             stateMenuItem.title = "State: Stopped"
             toggleMenuItem.title = "Resume Hotkey"
+            statusItem.button?.title = "VF⏸"
         case .ready:
             stateMenuItem.title = "State: Ready"
             toggleMenuItem.title = "Pause Hotkey"
+            statusItem.button?.title = "VF"
         case .recording:
             stateMenuItem.title = "State: Recording"
             toggleMenuItem.title = "Pause Hotkey"
+            statusItem.button?.title = "VF●"
         case .processing:
             stateMenuItem.title = "State: Processing"
             toggleMenuItem.title = "Pause Hotkey"
+            statusItem.button?.title = "VF…"
         }
     }
 
@@ -322,6 +347,10 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
             item.representedObject = entry.text
             recentSubmenu.addItem(item)
         }
+    }
+
+    private func refreshPermissionStatus(_ snapshot: PermissionSnapshot) {
+        permissionStatusItem.title = "Permissions: \(snapshot.summaryLine)"
     }
 
     private func appendRecentTranscript(_ text: String) {
@@ -451,6 +480,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     @objc
     private func requestPermissions() {
+        refreshPermissionStatus(controller.currentPermissionSnapshot())
+        shouldShowPermissionAlertOnNextSnapshot = true
         controller.requestSpeechAndMicrophonePermissions()
     }
 
@@ -469,9 +500,26 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         openSystemSettings(url: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
     }
 
+    @objc
+    private func openSpeechRecognitionSettings() {
+        openSystemSettings(url: "x-apple.systempreferences:com.apple.preference.security?Privacy_SpeechRecognition")
+    }
+
     private func openSystemSettings(url: String) {
         guard let target = URL(string: url) else { return }
         NSWorkspace.shared.open(target)
+    }
+
+    private func presentPermissionAlert(_ snapshot: PermissionSnapshot) {
+        let alert = NSAlert()
+        alert.alertStyle = snapshot.isReadyForHotkeyDictation ? .informational : .warning
+        alert.messageText = snapshot.isReadyForHotkeyDictation
+            ? "Permissions are ready"
+            : "Permissions are incomplete"
+        alert.informativeText = snapshot.summaryLine
+        alert.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 
     @objc

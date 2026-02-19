@@ -47,6 +47,10 @@ Build a controllable dictation stack that can rival tools like Typeless/Wispr in
 **Decision**: Persist `mode`, `hotkey`, and `language` with `UserDefaults`; add status bar recent transcript history and a one-click `Copy + Undo Last Insert` action.
 **Reason**: Users need stable preferences across restarts and a fast recovery path when a transcript should be reverted.
 
+### [Runtime feedback + permission diagnostics] (2026-02-18)
+**Decision**: Add visible menu bar runtime indicator (`VF`, `VF●`, `VF…`, `VF⏸`), explicit hotkey press/release logs, and permission snapshot reporting with in-app alert on request.
+**Reason**: Users need immediate confirmation that hotkeys are firing and clear diagnostics when permissions block recording.
+
 ## Next implementation target
 - Implement a minimal vertical slice:
   - push-to-talk hotkey

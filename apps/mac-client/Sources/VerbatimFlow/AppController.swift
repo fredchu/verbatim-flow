@@ -1,4 +1,7 @@
+import AVFoundation
+import ApplicationServices
 import Foundation
+import Speech
 
 enum RuntimeState: Equatable {
     case stopped
@@ -29,6 +32,7 @@ final class AppController {
     var onStateChanged: ((RuntimeState) -> Void)?
     var onLog: ((String) -> Void)?
     var onTranscriptCommitted: ((String) -> Void)?
+    var onPermissionSnapshot: ((PermissionSnapshot) -> Void)?
 
     init(config: CLIConfig) {
         self.localeIdentifier = config.localeIdentifier
@@ -102,13 +106,23 @@ final class AppController {
 
     func requestSpeechAndMicrophonePermissions() {
         Task { @MainActor in
-            let granted = await transcriber.ensurePermissions()
-            if granted {
-                emit("[permissions] Speech + microphone granted")
-            } else {
-                emit("[permissions] Speech or microphone denied")
-            }
+            _ = await transcriber.ensurePermissions()
+            let snapshot = currentPermissionSnapshot()
+            emit("[permissions] \(snapshot.summaryLine)")
+            onPermissionSnapshot?(snapshot)
         }
+    }
+
+    func currentPermissionSnapshot() -> PermissionSnapshot {
+        let speechStatus = SFSpeechRecognizer.authorizationStatus()
+        let microphoneStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        let accessibilityTrusted = AXIsProcessTrusted()
+
+        return PermissionSnapshot(
+            speech: mapSpeechStatus(speechStatus),
+            microphone: mapMicrophoneStatus(microphoneStatus),
+            accessibilityTrusted: accessibilityTrusted
+        )
     }
 
     func setMode(_ mode: OutputMode) {
@@ -205,9 +219,12 @@ final class AppController {
             return
         }
 
+        emit("[hotkey] pressed")
+
         let permissionsGranted = await transcriber.ensurePermissions()
         guard permissionsGranted else {
             emit("[error] Speech/Microphone permission denied.")
+            onPermissionSnapshot?(currentPermissionSnapshot())
             return
         }
 
@@ -229,6 +246,8 @@ final class AppController {
         guard isRecording else {
             return
         }
+
+        emit("[hotkey] released")
 
         isRecording = false
         runtimeState = .processing
@@ -266,5 +285,35 @@ final class AppController {
     private func emit(_ message: String) {
         print(message)
         onLog?(message)
+    }
+
+    private func mapSpeechStatus(_ status: SFSpeechRecognizerAuthorizationStatus) -> PermissionState {
+        switch status {
+        case .notDetermined:
+            return .notDetermined
+        case .authorized:
+            return .authorized
+        case .denied:
+            return .denied
+        case .restricted:
+            return .restricted
+        @unknown default:
+            return .unsupported
+        }
+    }
+
+    private func mapMicrophoneStatus(_ status: AVAuthorizationStatus) -> PermissionState {
+        switch status {
+        case .notDetermined:
+            return .notDetermined
+        case .authorized:
+            return .authorized
+        case .denied:
+            return .denied
+        case .restricted:
+            return .restricted
+        @unknown default:
+            return .unsupported
+        }
     }
 }

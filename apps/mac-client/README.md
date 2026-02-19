@@ -13,10 +13,17 @@ The app runs as a menu bar item (`VF`). Use the menu to:
 - Switch `Raw` and `Format-only` modes
 - Switch language (`System Default`, `zh-Hans`, `en-US`)
 - Trigger microphone/speech permission request
+- See permission status summary (`Mic/Speech/Accessibility`)
 - Change hotkey presets in-app
 - Access recent transcript history
 - Use `Copy + Undo Last Insert` for one-click rollback
 - Open Accessibility and Microphone permission pages
+
+Status indicator in menu bar:
+- `VF` = ready
+- `VF●` = recording
+- `VF…` = processing
+- `VF⏸` = paused
 
 ### Persistent settings
 `Mode`, `Hotkey`, and `Language` are now persisted with `UserDefaults` and restored on restart.
