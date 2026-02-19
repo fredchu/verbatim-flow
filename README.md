@@ -45,6 +45,7 @@ Native app launches as a menu bar item (`VF`) with controls for:
 - changing hotkey preset in-app
 - viewing recent transcript history
 - one-click `Copy + Undo Last Insert` rollback
+- opening/editing terminology dictionary (`term` and `source => target` rules)
 - opening permission settings
 - opening local runtime logs
 
@@ -74,4 +75,9 @@ cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-fl
 Runtime log file:
 ```bash
 ~/Library/Logs/VerbatimFlow/runtime.log
+```
+
+Terminology dictionary file:
+```bash
+~/Library/Application\ Support/VerbatimFlow/terminology.txt
 ```

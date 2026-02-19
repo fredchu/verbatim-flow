@@ -309,9 +309,10 @@ final class SpeechTranscriber {
             "Tabless",
             "Typeless"
         ]
+        let customRules = TerminologyDictionary.loadRules()
 
         if localeIdentifier.lowercased().hasPrefix("zh") {
-            return techTerms + [
+            return techTerms + customRules.hints + [
                 "中文",
                 "英文",
                 "中英文混合",
@@ -325,6 +326,6 @@ final class SpeechTranscriber {
                 "拉取请求"
             ]
         }
-        return techTerms
+        return techTerms + customRules.hints
     }
 }

@@ -126,6 +126,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         keyEquivalent: ""
     )
 
+    private lazy var openTerminologyItem = NSMenuItem(
+        title: "Open Terminology Dictionary",
+        action: #selector(openTerminologyDictionary),
+        keyEquivalent: ""
+    )
+
     private lazy var quitItem = NSMenuItem(
         title: "Quit VerbatimFlow",
         action: #selector(quitApp),
@@ -164,6 +170,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        TerminologyDictionary.ensureDictionaryFileExists()
         setupStatusItem()
         setupMenu()
         bindControllerCallbacks()
@@ -234,6 +241,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         openSpeechItem.target = self
         openInputMonitoringItem.target = self
         openLogsItem.target = self
+        openTerminologyItem.target = self
 
         quitItem.target = self
 
@@ -255,6 +263,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         menu.addItem(openInputMonitoringItem)
         menu.addItem(openMicItem)
         menu.addItem(openSpeechItem)
+        menu.addItem(openTerminologyItem)
         menu.addItem(openLogsItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(quitItem)
@@ -559,6 +568,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         }
 
         NSWorkspace.shared.open(directory)
+    }
+
+    @objc
+    private func openTerminologyDictionary() {
+        TerminologyDictionary.ensureDictionaryFileExists()
+        NSWorkspace.shared.open(TerminologyDictionary.fileURL)
     }
 
     private func elevateForPermissionPromptIfNeeded() {

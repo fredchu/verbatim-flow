@@ -328,14 +328,31 @@ final class AppController {
             return
         }
 
-        onTranscriptCommitted?(guarded.text)
+        let terminologyRules = TerminologyDictionary.loadRules()
+        let terminologyApplied = TerminologyDictionary.applyReplacements(
+            to: guarded.text,
+            replacements: terminologyRules.replacements
+        )
+        let finalText = terminologyApplied.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !finalText.isEmpty else {
+            pendingInsertTarget = nil
+            emit("[skip] Empty transcript after terminology normalization")
+            runtimeState = .ready
+            return
+        }
+
+        if !terminologyApplied.appliedRules.isEmpty {
+            emit("[terminology] applied: \(terminologyApplied.appliedRules.joined(separator: ", "))")
+        }
+
+        onTranscriptCommitted?(finalText)
 
         if guarded.fellBackToRaw {
             emit("[guard] Format-only attempt changed semantics. Fallback to raw.")
         }
 
         if dryRun {
-            emit("[dry-run] \(guarded.text)")
+            emit("[dry-run] \(finalText)")
             pendingInsertTarget = nil
             runtimeState = .ready
             return
@@ -349,9 +366,9 @@ final class AppController {
                     localizedName: target.localizedName
                 )
             }
-            try injector.insert(text: guarded.text, preferredTarget: preferredTarget)
+            try injector.insert(text: finalText, preferredTarget: preferredTarget)
             lastSuccessfulInsertTarget = pendingInsertTarget ?? capturePendingInsertTarget()
-            emit("[inserted] \(guarded.text)")
+            emit("[inserted] \(finalText)")
         } catch {
             if let appError = error as? AppError, case .accessibilityPermissionRequired = appError {
                 emit("[error] Accessibility permission missing/stale. Re-enable VerbatimFlow in Privacy & Security > Accessibility.")
