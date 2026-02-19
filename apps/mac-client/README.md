@@ -68,6 +68,11 @@ When `Recognition Engine` is set to `OpenAI Cloud`, set:
 - `OPENAI_API_KEY` (required)
 - `VERBATIMFLOW_OPENAI_MODEL` (optional, default: `gpt-4o-mini-transcribe`)
 - `VERBATIMFLOW_OPENAI_BASE_URL` (optional, default: `https://api.openai.com/v1`)
+- `VERBATIMFLOW_ALLOW_INSECURE_OPENAI_BASE_URL` (optional, default: off; set `1` only for local dev HTTP endpoints)
 
 If app environment variables are unavailable in GUI launch mode, edit:
 `~/Library/Application Support/VerbatimFlow/openai.env`
+
+Security defaults:
+- Cloud requests are sent over HTTPS by default.
+- Non-HTTPS `VERBATIMFLOW_OPENAI_BASE_URL` is rejected unless explicit dev override is enabled.

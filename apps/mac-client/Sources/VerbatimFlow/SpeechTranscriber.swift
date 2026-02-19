@@ -332,25 +332,33 @@ final class SpeechTranscriber {
             environment: env,
             fileValues: fileValues
         )) ?? "gpt-4o-mini-transcribe"
-        let resolvedBaseURL = resolvedSetting(
-            key: "VERBATIMFLOW_OPENAI_BASE_URL",
+        let endpoint = try resolvedOpenAIEndpoint(
             environment: env,
             fileValues: fileValues
-        ) ?? "https://api.openai.com/v1"
-        let endpoint = resolvedBaseURL.hasSuffix("/") ? "\(resolvedBaseURL)audio/transcriptions" : "\(resolvedBaseURL)/audio/transcriptions"
+        )
+        let usesTLS = endpoint.lowercased().hasPrefix("https://")
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
 
         var arguments: [String] = [
             "-sS",
+            "--connect-timeout", "15",
+            "--max-time", "180",
+        ]
+
+        if usesTLS {
+            arguments.append(contentsOf: ["--proto", "=https", "--tlsv1.2"])
+        }
+
+        arguments.append(contentsOf: [
             "-X", "POST",
             endpoint,
             "-H", "Authorization: Bearer \(apiKey)",
             "-F", "file=@\(audioURL.path)",
             "-F", "model=\(resolvedModel)",
             "-F", "response_format=json"
-        ]
+        ])
 
         if let languageCode, !languageCode.isEmpty {
             arguments.append(contentsOf: ["-F", "language=\(languageCode)"])
@@ -412,6 +420,53 @@ final class SpeechTranscriber {
             return fileValue
         }
         return nil
+    }
+
+    private nonisolated static func resolvedOpenAIEndpoint(
+        environment: [String: String],
+        fileValues: [String: String]
+    ) throws -> String {
+        let rawBaseURL = resolvedSetting(
+            key: "VERBATIMFLOW_OPENAI_BASE_URL",
+            environment: environment,
+            fileValues: fileValues
+        ) ?? "https://api.openai.com/v1"
+        guard let baseURL = URL(string: rawBaseURL), let scheme = baseURL.scheme?.lowercased(), !scheme.isEmpty else {
+            throw AppError.openAITranscriptionFailed("Invalid VERBATIMFLOW_OPENAI_BASE_URL: \(rawBaseURL)")
+        }
+
+        let allowInsecure = parseBooleanSetting(resolvedSetting(
+            key: "VERBATIMFLOW_ALLOW_INSECURE_OPENAI_BASE_URL",
+            environment: environment,
+            fileValues: fileValues
+        ))
+
+        if scheme != "https" {
+            guard allowInsecure else {
+                throw AppError.openAITranscriptionFailed(
+                    "VERBATIMFLOW_OPENAI_BASE_URL must use https:// (set VERBATIMFLOW_ALLOW_INSECURE_OPENAI_BASE_URL=1 only for local dev)."
+                )
+            }
+            RuntimeLogger.log("[openai] insecure base url enabled via VERBATIMFLOW_ALLOW_INSECURE_OPENAI_BASE_URL")
+        }
+
+        return baseURL
+            .appendingPathComponent("audio")
+            .appendingPathComponent("transcriptions")
+            .absoluteString
+    }
+
+    private nonisolated static func parseBooleanSetting(_ rawValue: String?) -> Bool {
+        guard let rawValue else {
+            return false
+        }
+
+        switch rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "1", "true", "yes", "on":
+            return true
+        default:
+            return false
+        }
     }
 
     private nonisolated static func resolveWhisperScriptURL() -> URL? {
