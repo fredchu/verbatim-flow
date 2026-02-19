@@ -24,6 +24,15 @@ enum RecognitionEngine: String {
     }
 }
 
+enum OpenAITranscriptionModel: String, CaseIterable {
+    case gpt4oMiniTranscribe = "gpt-4o-mini-transcribe"
+    case whisper1 = "whisper-1"
+
+    var displayName: String {
+        rawValue
+    }
+}
+
 enum WhisperModel: String, CaseIterable {
     case tiny
     case base
@@ -64,6 +73,7 @@ struct CLIConfig {
     let recognitionEngine: RecognitionEngine
     let whisperModel: WhisperModel
     let whisperComputeType: String
+    let openAIModel: OpenAITranscriptionModel
     let localeIdentifier: String
     let hotkey: Hotkey
     let requireOnDeviceRecognition: Bool
@@ -74,6 +84,7 @@ struct CLIConfig {
         recognitionEngine: .apple,
         whisperModel: .tiny,
         whisperComputeType: "int8",
+        openAIModel: .gpt4oMiniTranscribe,
         localeIdentifier: Locale.current.identifier,
         hotkey: .default,
         requireOnDeviceRecognition: false,
@@ -98,6 +109,7 @@ struct CLIConfig {
                     recognitionEngine: config.recognitionEngine,
                     whisperModel: config.whisperModel,
                     whisperComputeType: config.whisperComputeType,
+                    openAIModel: config.openAIModel,
                     localeIdentifier: config.localeIdentifier,
                     hotkey: config.hotkey,
                     requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -113,6 +125,7 @@ struct CLIConfig {
                     recognitionEngine: engine,
                     whisperModel: config.whisperModel,
                     whisperComputeType: config.whisperComputeType,
+                    openAIModel: config.openAIModel,
                     localeIdentifier: config.localeIdentifier,
                     hotkey: config.hotkey,
                     requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -128,6 +141,7 @@ struct CLIConfig {
                     recognitionEngine: config.recognitionEngine,
                     whisperModel: model,
                     whisperComputeType: config.whisperComputeType,
+                    openAIModel: config.openAIModel,
                     localeIdentifier: config.localeIdentifier,
                     hotkey: config.hotkey,
                     requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -143,6 +157,23 @@ struct CLIConfig {
                     recognitionEngine: config.recognitionEngine,
                     whisperModel: config.whisperModel,
                     whisperComputeType: args[index],
+                    openAIModel: config.openAIModel,
+                    localeIdentifier: config.localeIdentifier,
+                    hotkey: config.hotkey,
+                    requireOnDeviceRecognition: config.requireOnDeviceRecognition,
+                    dryRun: config.dryRun
+                )
+            case "--openai-model":
+                index += 1
+                guard index < args.count, let model = OpenAITranscriptionModel(rawValue: args[index]) else {
+                    throw ConfigError.invalidValue("--openai-model", "gpt-4o-mini-transcribe | whisper-1")
+                }
+                config = CLIConfig(
+                    mode: config.mode,
+                    recognitionEngine: config.recognitionEngine,
+                    whisperModel: config.whisperModel,
+                    whisperComputeType: config.whisperComputeType,
+                    openAIModel: model,
                     localeIdentifier: config.localeIdentifier,
                     hotkey: config.hotkey,
                     requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -158,6 +189,7 @@ struct CLIConfig {
                     recognitionEngine: config.recognitionEngine,
                     whisperModel: config.whisperModel,
                     whisperComputeType: config.whisperComputeType,
+                    openAIModel: config.openAIModel,
                     localeIdentifier: args[index],
                     hotkey: config.hotkey,
                     requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -174,6 +206,7 @@ struct CLIConfig {
                     recognitionEngine: config.recognitionEngine,
                     whisperModel: config.whisperModel,
                     whisperComputeType: config.whisperComputeType,
+                    openAIModel: config.openAIModel,
                     localeIdentifier: config.localeIdentifier,
                     hotkey: parsed,
                     requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -185,6 +218,7 @@ struct CLIConfig {
                     recognitionEngine: config.recognitionEngine,
                     whisperModel: config.whisperModel,
                     whisperComputeType: config.whisperComputeType,
+                    openAIModel: config.openAIModel,
                     localeIdentifier: config.localeIdentifier,
                     hotkey: config.hotkey,
                     requireOnDeviceRecognition: true,
@@ -196,6 +230,7 @@ struct CLIConfig {
                     recognitionEngine: config.recognitionEngine,
                     whisperModel: config.whisperModel,
                     whisperComputeType: config.whisperComputeType,
+                    openAIModel: config.openAIModel,
                     localeIdentifier: config.localeIdentifier,
                     hotkey: config.hotkey,
                     requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -236,13 +271,14 @@ enum HelpPrinter {
             "verbatim-flow",
             "",
             "Usage:",
-            "  verbatim-flow [--mode raw|format-only|clarify] [--engine apple|whisper|openai] [--whisper-model tiny|base|small|medium|large-v3] [--whisper-compute-type int8|int8_float16|float16|float32] [--locale <id>] [--hotkey ctrl+shift+space|shift+option] [--require-on-device] [--dry-run]",
+            "  verbatim-flow [--mode raw|format-only|clarify] [--engine apple|whisper|openai] [--whisper-model tiny|base|small|medium|large-v3] [--whisper-compute-type int8|int8_float16|float16|float32] [--openai-model gpt-4o-mini-transcribe|whisper-1] [--locale <id>] [--hotkey ctrl+shift+space|shift+option] [--require-on-device] [--dry-run]",
             "",
             "Defaults:",
             "  --mode raw",
             "  --engine apple",
             "  --whisper-model tiny",
             "  --whisper-compute-type int8",
+            "  --openai-model gpt-4o-mini-transcribe",
             "  --locale system locale",
             "  --hotkey ctrl+shift+space",
             ""

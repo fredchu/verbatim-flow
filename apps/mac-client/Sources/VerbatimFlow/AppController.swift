@@ -24,6 +24,7 @@ final class AppController {
     private let requireOnDeviceRecognition: Bool
     private var recognitionEngine: RecognitionEngine
     private var whisperModel: WhisperModel
+    private var openAIModel: OpenAITranscriptionModel
     private let whisperComputeType: String
     private var transcriber: SpeechTranscriber
     private let injector = TextInjector()
@@ -51,6 +52,7 @@ final class AppController {
         self.requireOnDeviceRecognition = config.requireOnDeviceRecognition
         self.recognitionEngine = config.recognitionEngine
         self.whisperModel = config.whisperModel
+        self.openAIModel = config.openAIModel
         self.whisperComputeType = config.whisperComputeType
         self.hotkey = config.hotkey
         self.mode = config.mode
@@ -60,6 +62,7 @@ final class AppController {
             requireOnDeviceRecognition: config.requireOnDeviceRecognition,
             recognitionEngine: config.recognitionEngine,
             whisperModel: config.whisperModel,
+            openAIModel: config.openAIModel,
             whisperComputeType: config.whisperComputeType
         )
     }
@@ -88,6 +91,10 @@ final class AppController {
         whisperModel
     }
 
+    var currentOpenAIModel: OpenAITranscriptionModel {
+        openAIModel
+    }
+
     var isRunning: Bool {
         hotkeyMonitor != nil
     }
@@ -99,7 +106,7 @@ final class AppController {
 
         emit("verbatim-flow")
         emit(
-            "mode=\(mode.rawValue) engine=\(recognitionEngine.rawValue) whisper-model=\(whisperModel.rawValue) locale=\(localeIdentifier) hotkey=\(hotkey.display)"
+            "mode=\(mode.rawValue) engine=\(recognitionEngine.rawValue) whisper-model=\(whisperModel.rawValue) openai-model=\(openAIModel.rawValue) locale=\(localeIdentifier) hotkey=\(hotkey.display)"
         )
         emit("release hotkey to transcribe and insert")
 
@@ -265,6 +272,21 @@ final class AppController {
         whisperModel = model
         rebuildTranscriber()
         emit("[config] whisper model set to \(model.rawValue)")
+    }
+
+    func setOpenAIModel(_ model: OpenAITranscriptionModel) {
+        guard openAIModel != model else {
+            return
+        }
+
+        guard !isRecording else {
+            emit("[warn] stop recording before changing OpenAI model")
+            return
+        }
+
+        openAIModel = model
+        rebuildTranscriber()
+        emit("[config] openai model set to \(model.rawValue)")
     }
 
     func copyTranscriptToClipboard(_ text: String) {
@@ -459,6 +481,7 @@ final class AppController {
             requireOnDeviceRecognition: requireOnDeviceRecognition,
             recognitionEngine: recognitionEngine,
             whisperModel: whisperModel,
+            openAIModel: openAIModel,
             whisperComputeType: whisperComputeType
         )
     }

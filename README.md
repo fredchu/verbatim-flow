@@ -38,11 +38,12 @@ cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-fl
 ./scripts/run-native-mac-client.sh --mode raw --hotkey ctrl+shift+space
 ```
 
-Native app launches as a menu bar item (`VF`) with controls for:
+Native app launches as a menu bar item (`VF`) with most controls grouped under `Settings`:
 - pause/resume hotkey listener
 - switching `Raw` / `Format-only` / `Clarify` mode
 - switching recognition engine (`Apple Speech` / `Whisper` / `OpenAI Cloud`)
 - switching Whisper model (`tiny` / `base` / `small` / `medium` / `large-v3`)
+- switching OpenAI model (`gpt-4o-mini-transcribe` / `whisper-1`)
 - switching language (`System Default` / `zh-Hans` / `en-US`)
 - requesting microphone/speech permission
 - changing hotkey preset in-app
@@ -53,7 +54,7 @@ Native app launches as a menu bar item (`VF`) with controls for:
 - opening permission settings
 - opening local runtime logs
 
-`Mode`, `Recognition Engine`, `Whisper Model`, `Hotkey`, and `Language` selections persist across restarts.
+`Mode`, `Recognition Engine`, `Whisper Model`, `OpenAI Model`, `Hotkey`, and `Language` selections persist across restarts.
 
 Build double-clickable app bundle:
 ```bash

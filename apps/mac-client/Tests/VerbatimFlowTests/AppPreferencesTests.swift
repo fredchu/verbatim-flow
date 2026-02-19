@@ -48,6 +48,14 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.loadWhisperModel(), .medium)
     }
 
+    func testSaveAndLoadOpenAIModel() {
+        let defaults = makeIsolatedDefaults()
+        let preferences = AppPreferences(defaults: defaults)
+
+        preferences.saveOpenAIModel(.whisper1)
+        XCTAssertEqual(preferences.loadOpenAIModel(), .whisper1)
+    }
+
     private func makeIsolatedDefaults() -> UserDefaults {
         let suiteName = "verbatimflow.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

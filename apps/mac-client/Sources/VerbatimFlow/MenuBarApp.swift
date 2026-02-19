@@ -18,6 +18,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
+    private let settingsMenuItem = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
 
     private let stateMenuItem = NSMenuItem(title: "State: Starting", action: nil, keyEquivalent: "")
     private lazy var toggleMenuItem = NSMenuItem(
@@ -60,6 +61,18 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         keyEquivalent: ""
     )
 
+    private let openAIModelMenuItem = NSMenuItem(title: "OpenAI Model", action: nil, keyEquivalent: "")
+    private lazy var openAIModelMiniItem = NSMenuItem(
+        title: "gpt-4o-mini-transcribe",
+        action: #selector(setOpenAIModelMini),
+        keyEquivalent: ""
+    )
+    private lazy var openAIModelWhisper1Item = NSMenuItem(
+        title: "whisper-1",
+        action: #selector(setOpenAIModelWhisper1),
+        keyEquivalent: ""
+    )
+
     private let whisperModelMenuItem = NSMenuItem(title: "Whisper Model", action: nil, keyEquivalent: "")
     private lazy var whisperModelTinyItem = NSMenuItem(
         title: "tiny",
@@ -90,6 +103,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private let hotkeyInfoItem: NSMenuItem
     private let engineInfoItem: NSMenuItem
     private let whisperModelInfoItem: NSMenuItem
+    private let openAIModelInfoItem: NSMenuItem
     private let hotkeyMenuItem = NSMenuItem(title: "Hotkey", action: nil, keyEquivalent: "")
     private lazy var hotkeyCtrlShiftSpaceItem = NSMenuItem(
         title: "Ctrl+Shift+Space",
@@ -210,6 +224,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         let mode = MenuBarApp.resolveMode(config: config, preferences: preferences)
         let recognitionEngine = MenuBarApp.resolveRecognitionEngine(config: config, preferences: preferences)
         let whisperModel = MenuBarApp.resolveWhisperModel(config: config, preferences: preferences)
+        let openAIModel = MenuBarApp.resolveOpenAIModel(config: config, preferences: preferences)
         let hotkey = MenuBarApp.resolveHotkey(config: config, preferences: preferences)
         let languageSelection = MenuBarApp.resolveLanguageSelection(config: config, preferences: preferences)
         let localeIdentifier = MenuBarApp.localeIdentifier(forSelection: languageSelection)
@@ -219,6 +234,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
             recognitionEngine: recognitionEngine,
             whisperModel: whisperModel,
             whisperComputeType: config.whisperComputeType,
+            openAIModel: openAIModel,
             localeIdentifier: localeIdentifier,
             hotkey: hotkey,
             requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -228,6 +244,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         self.languageSelection = languageSelection
         self.engineInfoItem = NSMenuItem(title: "Engine: \(recognitionEngine.displayName)", action: nil, keyEquivalent: "")
         self.whisperModelInfoItem = NSMenuItem(title: "Whisper Model: \(whisperModel.displayName)", action: nil, keyEquivalent: "")
+        self.openAIModelInfoItem = NSMenuItem(title: "OpenAI Model: \(openAIModel.displayName)", action: nil, keyEquivalent: "")
         self.hotkeyInfoItem = NSMenuItem(title: "Hotkey: \(hotkey.display)", action: nil, keyEquivalent: "")
         self.languageInfoItem = NSMenuItem(title: "Language: \(localeIdentifier)", action: nil, keyEquivalent: "")
         super.init()
@@ -264,6 +281,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         stateMenuItem.isEnabled = false
         engineInfoItem.isEnabled = false
         whisperModelInfoItem.isEnabled = false
+        openAIModelInfoItem.isEnabled = false
         hotkeyInfoItem.isEnabled = false
         languageInfoItem.isEnabled = false
         lastEventItem.isEnabled = false
@@ -289,6 +307,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         engineSubmenu.addItem(engineWhisperItem)
         engineSubmenu.addItem(engineOpenAIItem)
         engineMenuItem.submenu = engineSubmenu
+
+        openAIModelMiniItem.target = self
+        openAIModelWhisper1Item.target = self
+        let openAIModelSubmenu = NSMenu(title: "OpenAI Model")
+        openAIModelSubmenu.addItem(openAIModelMiniItem)
+        openAIModelSubmenu.addItem(openAIModelWhisper1Item)
+        openAIModelMenuItem.submenu = openAIModelSubmenu
 
         whisperModelSmallItem.target = self
         whisperModelTinyItem.target = self
@@ -336,6 +361,31 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         openTerminologyItem.target = self
         openOpenAISettingsItem.target = self
 
+        let settingsSubmenu = NSMenu(title: "Settings")
+        settingsSubmenu.addItem(modeMenuItem)
+        settingsSubmenu.addItem(engineMenuItem)
+        settingsSubmenu.addItem(whisperModelMenuItem)
+        settingsSubmenu.addItem(openAIModelMenuItem)
+        settingsSubmenu.addItem(hotkeyMenuItem)
+        settingsSubmenu.addItem(languageMenuItem)
+        settingsSubmenu.addItem(NSMenuItem.separator())
+        settingsSubmenu.addItem(engineInfoItem)
+        settingsSubmenu.addItem(whisperModelInfoItem)
+        settingsSubmenu.addItem(openAIModelInfoItem)
+        settingsSubmenu.addItem(hotkeyInfoItem)
+        settingsSubmenu.addItem(languageInfoItem)
+        settingsSubmenu.addItem(NSMenuItem.separator())
+        settingsSubmenu.addItem(requestPermissionsItem)
+        settingsSubmenu.addItem(openAccessibilityItem)
+        settingsSubmenu.addItem(openInputMonitoringItem)
+        settingsSubmenu.addItem(openMicItem)
+        settingsSubmenu.addItem(openSpeechItem)
+        settingsSubmenu.addItem(NSMenuItem.separator())
+        settingsSubmenu.addItem(openTerminologyItem)
+        settingsSubmenu.addItem(openOpenAISettingsItem)
+        settingsSubmenu.addItem(openLogsItem)
+        settingsMenuItem.submenu = settingsSubmenu
+
         quitItem.target = self
 
         menu.addItem(stateMenuItem)
@@ -343,26 +393,9 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         menu.addItem(permissionStatusItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(toggleMenuItem)
-        menu.addItem(modeMenuItem)
-        menu.addItem(engineMenuItem)
-        menu.addItem(whisperModelMenuItem)
-        menu.addItem(hotkeyMenuItem)
-        menu.addItem(languageMenuItem)
-        menu.addItem(engineInfoItem)
-        menu.addItem(whisperModelInfoItem)
-        menu.addItem(hotkeyInfoItem)
-        menu.addItem(languageInfoItem)
+        menu.addItem(settingsMenuItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(recentMenuItem)
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(requestPermissionsItem)
-        menu.addItem(openAccessibilityItem)
-        menu.addItem(openInputMonitoringItem)
-        menu.addItem(openMicItem)
-        menu.addItem(openSpeechItem)
-        menu.addItem(openTerminologyItem)
-        menu.addItem(openOpenAISettingsItem)
-        menu.addItem(openLogsItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(quitItem)
     }
@@ -421,9 +454,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func refreshEngineChecks() {
         let currentEngine = controller.currentRecognitionEngine
         let currentWhisperModel = controller.currentWhisperModel
+        let currentOpenAIModel = controller.currentOpenAIModel
 
         engineInfoItem.title = "Engine: \(currentEngine.displayName)"
         whisperModelInfoItem.title = "Whisper Model: \(currentWhisperModel.displayName)"
+        openAIModelInfoItem.title = "OpenAI Model: \(currentOpenAIModel.displayName)"
 
         engineAppleItem.state = currentEngine == .apple ? .on : .off
         engineWhisperItem.state = currentEngine == .whisper ? .on : .off
@@ -434,9 +469,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         whisperModelBaseItem.state = currentWhisperModel == .base ? .on : .off
         whisperModelMediumItem.state = currentWhisperModel == .medium ? .on : .off
         whisperModelLargeV3Item.state = currentWhisperModel == .largeV3 ? .on : .off
+        openAIModelMiniItem.state = currentOpenAIModel == .gpt4oMiniTranscribe ? .on : .off
+        openAIModelWhisper1Item.state = currentOpenAIModel == .whisper1 ? .on : .off
 
         whisperModelMenuItem.isEnabled = currentEngine == .whisper
+        openAIModelMenuItem.isEnabled = currentEngine == .openai
         whisperModelInfoItem.isHidden = currentEngine != .whisper
+        openAIModelInfoItem.isHidden = currentEngine != .openai
     }
 
     private func refreshHotkeyChecks() {
@@ -603,6 +642,22 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func setWhisperModel(_ model: WhisperModel) {
         controller.setWhisperModel(model)
         preferences.saveWhisperModel(controller.currentWhisperModel)
+        refreshEngineChecks()
+    }
+
+    @objc
+    private func setOpenAIModelMini() {
+        setOpenAIModel(.gpt4oMiniTranscribe)
+    }
+
+    @objc
+    private func setOpenAIModelWhisper1() {
+        setOpenAIModel(.whisper1)
+    }
+
+    private func setOpenAIModel(_ model: OpenAITranscriptionModel) {
+        controller.setOpenAIModel(model)
+        preferences.saveOpenAIModel(controller.currentOpenAIModel)
         refreshEngineChecks()
     }
 
@@ -834,6 +889,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
             return config.whisperModel
         }
         return preferences.loadWhisperModel() ?? config.whisperModel
+    }
+
+    private static func resolveOpenAIModel(config: CLIConfig, preferences: AppPreferences) -> OpenAITranscriptionModel {
+        if hasCLIFlag("--openai-model") {
+            return config.openAIModel
+        }
+        return preferences.loadOpenAIModel() ?? config.openAIModel
     }
 
     private static func resolveHotkey(config: CLIConfig, preferences: AppPreferences) -> Hotkey {

@@ -8,11 +8,12 @@ cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-fl
 swift run verbatim-flow --mode raw --hotkey ctrl+shift+space
 ```
 
-The app runs as a menu bar item (`VF`). Use the menu to:
+The app runs as a menu bar item (`VF`). Most controls are grouped under a unified `Settings` submenu:
 - Pause/resume hotkey listener
 - Switch `Raw`, `Format-only`, and `Clarify` modes
 - Switch recognition engine (`Apple Speech`, `Whisper`, `OpenAI Cloud`)
 - Switch Whisper model (`tiny`, `base`, `small`, `medium`, `large-v3`)
+- Switch OpenAI cloud model (`gpt-4o-mini-transcribe`, `whisper-1`)
 - Switch language (`System Default`, `zh-Hans`, `en-US`)
 - Trigger microphone/speech permission request
 - See permission status summary (`Mic/Speech/Accessibility`)
@@ -33,7 +34,7 @@ Permission request behavior:
 - Permission requests use timeout fallback, so the UI reports status even if macOS callbacks stall.
 
 ### Persistent settings
-`Mode`, `Recognition Engine`, `Whisper Model`, `Hotkey`, and `Language` are persisted with `UserDefaults` and restored on restart.
+`Mode`, `Recognition Engine`, `Whisper Model`, `OpenAI Model`, `Hotkey`, and `Language` are persisted with `UserDefaults` and restored on restart.
 CLI flags still override saved values for the current run.
 
 ## Build and test
@@ -56,6 +57,7 @@ open "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-
 - `--engine apple|whisper|openai`
 - `--whisper-model tiny|base|small|medium|large-v3`
 - `--whisper-compute-type int8|int8_float16|float16|float32`
+- `--openai-model gpt-4o-mini-transcribe|whisper-1`
 - `--hotkey ctrl+shift+space` (also supports modifier-only combos like `shift+option`, and aliases like `shift+alt`)
 - `--locale zh-Hans`
 - `--require-on-device`

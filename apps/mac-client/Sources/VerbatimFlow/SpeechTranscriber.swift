@@ -10,6 +10,7 @@ final class SpeechTranscriber {
     private let requireOnDeviceRecognition: Bool
     private let recognitionEngine: RecognitionEngine
     private let whisperModel: WhisperModel
+    private let openAIModel: OpenAITranscriptionModel
     private let whisperComputeType: String
 
     private let audioEngine = AVAudioEngine()
@@ -28,12 +29,14 @@ final class SpeechTranscriber {
         requireOnDeviceRecognition: Bool,
         recognitionEngine: RecognitionEngine,
         whisperModel: WhisperModel,
+        openAIModel: OpenAITranscriptionModel,
         whisperComputeType: String
     ) {
         self.localeIdentifier = localeIdentifier
         self.requireOnDeviceRecognition = requireOnDeviceRecognition
         self.recognitionEngine = recognitionEngine
         self.whisperModel = whisperModel
+        self.openAIModel = openAIModel
         self.whisperComputeType = whisperComputeType
     }
 
@@ -229,10 +232,15 @@ final class SpeechTranscriber {
         }
 
         let languageCode = Self.whisperLanguageCode(from: localeIdentifier)
+        let selectedModel = openAIModel.rawValue
         let transcript = try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let text = try Self.transcribeOpenAIAudioFile(audioURL: recordingURL, languageCode: languageCode)
+                    let text = try Self.transcribeOpenAIAudioFile(
+                        audioURL: recordingURL,
+                        languageCode: languageCode,
+                        modelOverride: selectedModel
+                    )
                     continuation.resume(returning: text)
                 } catch {
                     continuation.resume(throwing: error)
@@ -302,7 +310,11 @@ final class SpeechTranscriber {
         return outputText
     }
 
-    private nonisolated static func transcribeOpenAIAudioFile(audioURL: URL, languageCode: String?) throws -> String {
+    private nonisolated static func transcribeOpenAIAudioFile(
+        audioURL: URL,
+        languageCode: String?,
+        modelOverride: String?
+    ) throws -> String {
         let env = ProcessInfo.processInfo.environment
         let fileValues = OpenAISettings.loadValues()
 
@@ -315,11 +327,11 @@ final class SpeechTranscriber {
             throw AppError.openAIAPIKeyMissing
         }
 
-        let resolvedModel = resolvedSetting(
+        let resolvedModel = (modelOverride?.isEmpty == false ? modelOverride! : resolvedSetting(
             key: "VERBATIMFLOW_OPENAI_MODEL",
             environment: env,
             fileValues: fileValues
-        ) ?? "gpt-4o-mini-transcribe"
+        )) ?? "gpt-4o-mini-transcribe"
         let resolvedBaseURL = resolvedSetting(
             key: "VERBATIMFLOW_OPENAI_BASE_URL",
             environment: env,
