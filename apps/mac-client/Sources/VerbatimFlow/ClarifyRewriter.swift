@@ -40,12 +40,14 @@ Rules:
 
         var payload: [String: Any] = [
             "model": transport.model,
-            "temperature": 0.1,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": "locale=\(localeIdentifier)\n\n" + trimmed]
             ]
         ]
+        if modelSupportsTemperature(transport.model) {
+            payload["temperature"] = 0.1
+        }
         if transport.provider == "openrouter", let providerSort = transport.openRouterProviderSort {
             payload["provider"] = ["sort": providerSort]
         }
@@ -267,6 +269,15 @@ Rules:
         default:
             return false
         }
+    }
+
+    private static func modelSupportsTemperature(_ model: String) -> Bool {
+        let lowered = model.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalized = String(lowered.split(separator: "/").last ?? Substring(lowered))
+        if normalized == "gpt-5" || normalized.hasPrefix("gpt-5-") {
+            return false
+        }
+        return true
     }
 
     private static func performRequest(_ request: URLRequest, timeout: TimeInterval) throws -> (Data, Int) {
