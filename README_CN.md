@@ -8,6 +8,10 @@
 
 > **延伸阅读：** 想自己构建 AI 工具？查看 [Agent Skills 资源库](https://www.axtonliu.ai/agent-skills)（含幻灯片、PDF、诊断工具）
 
+<p align="center">
+  <img src="assets/bento-features.png" alt="VerbatimFlow 功能总览" width="720">
+</p>
+
 ## 它做什么
 
 VerbatimFlow 是一个 macOS 菜单栏语音输入工具，转写语音后直接注入到当前活跃的应用中。与那些悄悄改写你原话的工具不同，VerbatimFlow 默认保留你的原始表述。

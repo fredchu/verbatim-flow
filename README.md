@@ -10,6 +10,10 @@ A fast, zero-rewrite dictation app for macOS — your words, exactly as spoken.
 
 > **Next Step:** Want to build your own AI-powered tools? Check out the [Agent Skills Resource Library](https://www.axtonliu.ai/agent-skills) (includes slides, PDF, diagnostics)
 
+<p align="center">
+  <img src="assets/bento-features.png" alt="VerbatimFlow Feature Overview" width="720">
+</p>
+
 ## What It Does
 
 VerbatimFlow is a menu bar dictation utility that transcribes speech and injects text directly into any focused app. Unlike tools that silently rewrite your words, VerbatimFlow preserves your original phrasing by default.
