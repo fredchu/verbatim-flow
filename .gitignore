@@ -13,3 +13,5 @@ apps/mac-client/python/**/*.pyc
 apps/mac-client/build/
 apps/mac-client/.build/
 tmp/
+docs/WORK_LOG.md
+docs/REGRESSION_LOG.md
