@@ -236,8 +236,18 @@ final class TextInjector {
             return false
         }
 
-        // Messages can report AX selected-text success without mutating the composer.
-        // Prefer paste fallback for deterministic insertion.
-        return bundleIdentifier == "com.apple.MobileSMS"
+        // Messages and some WeChat builds can report AX selected-text success
+        // without mutating the composer. Prefer paste fallback for deterministic
+        // insertion in those apps.
+        return bundleIdentifier == "com.apple.MobileSMS" || isWeChatLike(bundleIdentifier)
+    }
+
+    private func isWeChatLike(_ bundleIdentifier: String) -> Bool {
+        switch bundleIdentifier {
+        case "com.tencent.xinWeChat", "com.tencent.WeChat":
+            return true
+        default:
+            return false
+        }
     }
 }
