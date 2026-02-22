@@ -122,6 +122,7 @@
   - Improve line breaks and Chinese punctuation quality.
 - Planned baseline:
   - Optional punctuation normalization (`English comma/period` -> `Chinese punctuation`) when locale is Chinese.
+  - Fix half-width punctuation in Chinese output (especially comma and question mark) to full-width punctuation by default.
   - Optional lightweight paragraph split by pause/length heuristics.
   - Keep disabled by default until quality validated.
 
