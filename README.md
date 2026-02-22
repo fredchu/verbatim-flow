@@ -16,7 +16,7 @@ A fast, zero-rewrite dictation app for macOS — your words, exactly as spoken.
 
 ## Why I Built This
 
-I tried every major dictation app on macOS. They all share the same problems:
+I tried several popular dictation apps on macOS. They all share the same problems:
 
 - **They rewrite your words.** You say one thing, and the tool "helpfully" rephrases it. You lose trust in your own input.
 - **The hotkey gets stuck.** You release the key, but the app keeps recording. You have to press again — or restart.
