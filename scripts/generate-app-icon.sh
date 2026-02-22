@@ -9,71 +9,102 @@ ICNS_FILE="$RES_DIR/AppIcon.icns"
 mkdir -p "$RES_DIR"
 
 python3 - "$MASTER_PNG" <<'PY'
-import math
 import sys
 from PIL import Image, ImageDraw, ImageFilter
 
+def lerp(a, b, t):
+    return int(round(a + (b - a) * t))
+
+def rounded_mask(width, height, radius):
+    mask = Image.new("L", (width, height), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, width - 1, height - 1), radius=radius, fill=255)
+    return mask
+
+def gradient_pill(width, height, radius, start_rgb, end_rgb, opacity):
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    px = img.load()
+    denom = max(width + height - 2, 1)
+    for y in range(height):
+        for x in range(width):
+            t = (x + y) / denom
+            px[x, y] = (
+                lerp(start_rgb[0], end_rgb[0], t),
+                lerp(start_rgb[1], end_rgb[1], t),
+                lerp(start_rgb[2], end_rgb[2], t),
+                255,
+            )
+    mask = rounded_mask(width, height, radius)
+    alpha_scale = int(round(255 * opacity))
+    img.putalpha(mask.point(lambda p: p * alpha_scale // 255))
+    return img
+
+def solid_pill(width, height, radius, rgb, opacity):
+    img = Image.new("RGBA", (width, height), rgb + (255,))
+    mask = rounded_mask(width, height, radius)
+    alpha_scale = int(round(255 * opacity))
+    img.putalpha(mask.point(lambda p: p * alpha_scale // 255))
+    return img
+
+def add_bar(canvas, bar_img, center_xy, angle_deg, shadow_offset_y, shadow_blur, shadow_alpha):
+    rotated = bar_img.rotate(angle_deg, resample=Image.BICUBIC, expand=True)
+    rx = int(round(center_xy[0] - rotated.width / 2))
+    ry = int(round(center_xy[1] - rotated.height / 2))
+
+    shadow_mask = rotated.split()[-1].filter(ImageFilter.GaussianBlur(shadow_blur))
+    shadow_alpha_scale = int(round(255 * shadow_alpha))
+    shadow = Image.new("RGBA", rotated.size, (0, 0, 0, 0))
+    shadow.putalpha(shadow_mask.point(lambda p: p * shadow_alpha_scale // 255))
+
+    canvas.alpha_composite(shadow, (rx, ry + shadow_offset_y))
+    canvas.alpha_composite(rotated, (rx, ry))
+
 output_path = sys.argv[1]
 size = 1024
-corner = 220
+scale = size / 512.0
+corner = int(round(115 * scale))
 
 image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
 draw = ImageDraw.Draw(image)
+draw.rounded_rectangle((0, 0, size - 1, size - 1), radius=corner, fill=(0x2F, 0x2B, 0x42, 255))
 
-# Diagonal gradient background.
-for y in range(size):
-    for x in range(size):
-        t = (x + y) / (2 * size)
-        r = int(20 + 30 * t)
-        g = int(50 + 120 * t)
-        b = int(85 + 130 * t)
-        image.putpixel((x, y), (r, g, b, 255))
+group_x = 256 * scale
+group_y = 266 * scale
+bar_w = int(round(56 * scale))
+bar_h = int(round(240 * scale))
+bar_r = int(round(28 * scale))
+shadow_offset = int(round(15 * scale))
+shadow_blur = int(round(10 * scale))
 
-mask = Image.new("L", (size, size), 0)
-mask_draw = ImageDraw.Draw(mask)
-mask_draw.rounded_rectangle((0, 0, size - 1, size - 1), radius=corner, fill=255)
-image.putalpha(mask)
+left_bar = gradient_pill(
+    bar_w, bar_h, bar_r,
+    (0xE6, 0xE6, 0xFA),
+    (0x96, 0x7B, 0xB6),
+    0.90,
+)
+right_bar = solid_pill(
+    bar_w, bar_h, bar_r,
+    (0x4A, 0xFA, 0x9C),
+    0.95,
+)
 
-overlay = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-overlay_draw = ImageDraw.Draw(overlay)
-overlay_draw.ellipse((140, 120, 860, 840), fill=(120, 230, 255, 52))
-overlay_draw.ellipse((240, 180, 980, 920), fill=(60, 140, 255, 48))
-overlay = overlay.filter(ImageFilter.GaussianBlur(50))
-image = Image.alpha_composite(image, overlay)
-
-glyph = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-g = ImageDraw.Draw(glyph)
-
-# Soft ring.
-g.ellipse((180, 180, 844, 844), outline=(214, 248, 255, 116), width=26)
-
-# Wave bars.
-bars = [220, 320, 460, 360, 250]
-bar_w = 70
-gap = 32
-left = (size - (bar_w * len(bars) + gap * (len(bars) - 1))) // 2
-baseline = 660
-
-for idx, height in enumerate(bars):
-    x0 = left + idx * (bar_w + gap)
-    x1 = x0 + bar_w
-    y0 = baseline - height
-    y1 = baseline
-    g.rounded_rectangle((x0, y0, x1, y1), radius=34, fill=(245, 252, 255, 246))
-    g.rounded_rectangle((x0 + 6, y0 + 10, x1 - 6, y1 - 14), radius=28, fill=(140, 242, 255, 188))
-
-# Accent spark.
-g.ellipse((724, 290, 794, 360), fill=(255, 255, 255, 250))
-g.polygon([(758, 238), (781, 290), (735, 290)], fill=(255, 255, 255, 224))
-
-glyph = glyph.filter(ImageFilter.GaussianBlur(0.6))
-image = Image.alpha_composite(image, glyph)
-
-shadow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-s = ImageDraw.Draw(shadow)
-s.rounded_rectangle((34, 34, size - 34, size - 34), radius=corner, outline=(255, 255, 255, 50), width=2)
-shadow = shadow.filter(ImageFilter.GaussianBlur(0.8))
-image = Image.alpha_composite(image, shadow)
+add_bar(
+    image,
+    left_bar,
+    (group_x + (-57 * scale), group_y + (-20 * scale)),
+    -35,
+    shadow_offset,
+    shadow_blur,
+    0.30,
+)
+add_bar(
+    image,
+    right_bar,
+    (group_x + (53 * scale), group_y + (-20 * scale)),
+    35,
+    shadow_offset,
+    shadow_blur,
+    0.30,
+)
 
 image.save(output_path, "PNG")
 print(output_path)
