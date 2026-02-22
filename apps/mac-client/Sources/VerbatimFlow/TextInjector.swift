@@ -46,15 +46,21 @@ final class TextInjector {
             RuntimeLogger.log("[insert] frontmost application unavailable before insertion")
         }
 
-        if shouldUseUnicodeTyping(frontmost?.bundleIdentifier) {
+        let frontmostBundleID = frontmost?.bundleIdentifier
+
+        if shouldUseUnicodeTyping(frontmostBundleID) {
             try postUnicodeText(text)
             RuntimeLogger.log("[insert] via unicode typing")
             return
         }
 
-        if tryInsertViaAccessibility(text: text) {
-            RuntimeLogger.log("[insert] via accessibility selected text")
-            return
+        if shouldSkipAccessibilityInsertion(frontmostBundleID) {
+            RuntimeLogger.log("[insert] skip accessibility selected text for bundle=\(frontmostBundleID ?? "-")")
+        } else {
+            if tryInsertViaAccessibility(text: text) {
+                RuntimeLogger.log("[insert] via accessibility selected text")
+                return
+            }
         }
 
         restoreClipboardWorkItem?.cancel()
@@ -223,5 +229,15 @@ final class TextInjector {
         // Codex chat input can report AX success without visible text mutation.
         // Unicode event typing is more deterministic there than AX/paste fallback.
         return bundleIdentifier == "com.openai.codex" || bundleIdentifier.hasPrefix("com.openai.codex.")
+    }
+
+    private func shouldSkipAccessibilityInsertion(_ bundleIdentifier: String?) -> Bool {
+        guard let bundleIdentifier else {
+            return false
+        }
+
+        // Messages can report AX selected-text success without mutating the composer.
+        // Prefer paste fallback for deterministic insertion.
+        return bundleIdentifier == "com.apple.MobileSMS"
     }
 }
