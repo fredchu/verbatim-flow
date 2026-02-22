@@ -18,25 +18,57 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
+    private let aboutMenuItem = NSMenuItem(title: "About", action: nil, keyEquivalent: "")
     private let settingsMenuItem = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
 
     private let stateMenuItem = NSMenuItem(title: "State: Starting", action: nil, keyEquivalent: "")
     private lazy var toggleMenuItem = NSMenuItem(
         title: "Pause Hotkey",
         action: #selector(toggleRunning),
-        keyEquivalent: "p"
+        keyEquivalent: ""
     )
 
     private let modeMenuItem = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
     private lazy var formatOnlyModeItem = NSMenuItem(
         title: "Standard (Raw+Format)",
         action: #selector(setFormatOnlyMode),
-        keyEquivalent: "f"
+        keyEquivalent: ""
     )
     private lazy var clarifyModeItem = NSMenuItem(
         title: "Clarify",
         action: #selector(setClarifyMode),
-        keyEquivalent: "c"
+        keyEquivalent: ""
+    )
+
+    private lazy var aboutAppItem = NSMenuItem(
+        title: "About VerbatimFlow",
+        action: #selector(openAboutPanel),
+        keyEquivalent: ""
+    )
+    private lazy var openHomepageItem = NSMenuItem(
+        title: "Axton Homepage",
+        action: #selector(openAxtonHomepage),
+        keyEquivalent: ""
+    )
+    private lazy var openAgentSkillsLibraryItem = NSMenuItem(
+        title: "Agent Skills Resource Library",
+        action: #selector(openAgentSkillsLibrary),
+        keyEquivalent: ""
+    )
+    private lazy var openAgentSkillsOriginItem = NSMenuItem(
+        title: "Agent Skills Origin Guide",
+        action: #selector(openAgentSkillsOriginGuide),
+        keyEquivalent: ""
+    )
+    private lazy var openYouTubeItem = NSMenuItem(
+        title: "Axton YouTube",
+        action: #selector(openAxtonYouTube),
+        keyEquivalent: ""
+    )
+    private lazy var openXItem = NSMenuItem(
+        title: "Axton X / Twitter",
+        action: #selector(openAxtonX),
+        keyEquivalent: ""
     )
 
     private let engineMenuItem = NSMenuItem(title: "Recognition Engine", action: nil, keyEquivalent: "")
@@ -364,6 +396,22 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         openLogsItem.target = self
         openTerminologyItem.target = self
         openOpenAISettingsItem.target = self
+        aboutAppItem.target = self
+        openHomepageItem.target = self
+        openAgentSkillsLibraryItem.target = self
+        openAgentSkillsOriginItem.target = self
+        openYouTubeItem.target = self
+        openXItem.target = self
+
+        let aboutSubmenu = NSMenu(title: "About")
+        aboutSubmenu.addItem(aboutAppItem)
+        aboutSubmenu.addItem(NSMenuItem.separator())
+        aboutSubmenu.addItem(openHomepageItem)
+        aboutSubmenu.addItem(openAgentSkillsLibraryItem)
+        aboutSubmenu.addItem(openAgentSkillsOriginItem)
+        aboutSubmenu.addItem(openYouTubeItem)
+        aboutSubmenu.addItem(openXItem)
+        aboutMenuItem.submenu = aboutSubmenu
 
         let settingsSubmenu = NSMenu(title: "Settings")
         settingsSubmenu.addItem(modeMenuItem)
@@ -398,6 +446,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         menu.addItem(permissionStatusItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(toggleMenuItem)
+        menu.addItem(aboutMenuItem)
         menu.addItem(settingsMenuItem)
         menu.addItem(NSMenuItem.separator())
         menu.addItem(recentMenuItem)
@@ -841,6 +890,44 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func openOpenAISettings() {
         OpenAISettings.ensureConfigFileExists()
         NSWorkspace.shared.open(OpenAISettings.fileURL)
+    }
+
+    @objc
+    private func openAboutPanel() {
+        NSApp.orderFrontStandardAboutPanel(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc
+    private func openAxtonHomepage() {
+        openExternalURL("https://www.axtonliu.ai")
+    }
+
+    @objc
+    private func openAgentSkillsLibrary() {
+        openExternalURL("https://www.axtonliu.ai/agent-skills")
+    }
+
+    @objc
+    private func openAgentSkillsOriginGuide() {
+        openExternalURL("https://www.axtonliu.ai/newsletters/ai-2/posts/claude-agent-skills-maps-framework")
+    }
+
+    @objc
+    private func openAxtonYouTube() {
+        openExternalURL("https://youtube.com/@AxtonLiu")
+    }
+
+    @objc
+    private func openAxtonX() {
+        openExternalURL("https://twitter.com/axtonliu")
+    }
+
+    private func openExternalURL(_ rawURL: String) {
+        guard let url = URL(string: rawURL) else {
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 
     private func elevateForPermissionPromptIfNeeded() {

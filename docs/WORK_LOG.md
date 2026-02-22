@@ -230,3 +230,15 @@
 - Compatibility:
   - Existing transcription path stays unchanged on OpenAI cloud.
   - OpenRouter integration is scoped to clarify rewrite path to avoid impacting current ASR stability.
+
+### Todo 3 (release usability) - installer + menu alignment
+- User feedback:
+  - Need direct macOS install artifact.
+  - Menu was showing shortcut hints that did not represent actual dictation hotkeys.
+  - Need an `About` menu with Axton homepage and Agent Skills resources.
+- Implementation:
+  - Added DMG packaging script:
+    - `scripts/build-installer-dmg.sh`
+  - Added About submenu in menu bar app with links:
+    - Homepage, Agent Skills resource/origin pages, YouTube, X
+  - Removed misleading menu key-equivalent hints for non-global actions (`Pause Hotkey`, `Mode` items), keeping behavior explicit.

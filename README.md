@@ -41,6 +41,7 @@ cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-fl
 
 Native app launches as a menu bar item (`VF`) with most controls grouped under `Settings`:
 - pause/resume hotkey listener
+- About menu with project info and resource links
 - switching `Standard (Raw+Format)` / `Clarify` mode
 - dual hotkey segment trigger:
   - primary hotkey uses current default mode
@@ -69,6 +70,13 @@ Build double-clickable app bundle:
 cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-flow"
 ./scripts/build-native-app.sh
 open "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-flow/apps/mac-client/dist/VerbatimFlow.app"
+```
+
+Build installable DMG (drag-and-drop to Applications):
+```bash
+cd "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-flow"
+./scripts/build-installer-dmg.sh
+open "/Users/axton/Documents/DailyWork🌴/Project Files/Code Projects/verbatim-flow/apps/mac-client/dist/VerbatimFlow-installer.dmg"
 ```
 
 The build script signs with a stable designated requirement (`identifier "com.axtonliu.verbatimflow"`), so Accessibility/Input Monitoring permissions do not invalidate on each rebuild.

@@ -133,6 +133,19 @@
   - Transcription engine behavior remains unchanged.
   - Clarify provider switch must not alter insertion pipeline or hotkey lifecycle.
 
+## 2026-02-22: Menu shortcut display alignment + installer artifact
+
+- Symptom:
+  - Menu displayed shortcut hints that could be confused with dictation hotkeys.
+  - No direct installer artifact for drag-and-drop installation.
+- Fix:
+  - Removed non-essential menu key-equivalent hints for pause/mode actions.
+  - Added About submenu with external resource links.
+  - Added `scripts/build-installer-dmg.sh` to generate installable `.dmg`.
+- Guardrail:
+  - UI shortcut hints should never conflict with actual global dictation hotkeys.
+  - Installer generation should be one-command and reproducible from repo root.
+
 ## Manual regression checklist (before release)
 
 - Permissions:
