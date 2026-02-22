@@ -220,6 +220,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private var permissionRequestFallbackWorkItem: DispatchWorkItem?
     private var shouldRestoreAccessoryAfterPermissionRequest = false
     private var aboutWindowController: NSWindowController?
+    private lazy var menuBarBaseIcon: NSImage? = {
+        guard let path = Bundle.main.path(forResource: "AppIcon", ofType: "icns"),
+              let image = NSImage(contentsOfFile: path) else {
+            return nil
+        }
+        image.isTemplate = false
+        return image
+    }()
     private let transcriptDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -282,7 +290,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         guard let button = statusItem.button else { return }
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleProportionallyDown
-        applyStatusIcon(symbolName: "waveform.circle", fallbackText: "VF")
+        applyStatusIcon(for: .ready)
         button.toolTip = "VerbatimFlow"
         statusItem.menu = menu
     }
@@ -448,36 +456,94 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         case .stopped:
             stateMenuItem.title = "State: Stopped"
             toggleMenuItem.title = "Resume Hotkey"
-            applyStatusIcon(symbolName: "pause.circle", fallbackText: "VF⏸")
+            applyStatusIcon(for: .stopped)
         case .ready:
             stateMenuItem.title = "State: Ready"
             toggleMenuItem.title = "Pause Hotkey"
-            applyStatusIcon(symbolName: "waveform.circle", fallbackText: "VF")
+            applyStatusIcon(for: .ready)
         case .recording:
             stateMenuItem.title = "State: Recording"
             toggleMenuItem.title = "Pause Hotkey"
-            applyStatusIcon(symbolName: "mic.circle.fill", fallbackText: "VF●")
+            applyStatusIcon(for: .recording)
         case .processing:
             stateMenuItem.title = "State: Processing"
             toggleMenuItem.title = "Pause Hotkey"
-            applyStatusIcon(symbolName: "hourglass.circle", fallbackText: "VF…")
+            applyStatusIcon(for: .processing)
         }
     }
 
-    private func applyStatusIcon(symbolName: String, fallbackText: String) {
+    private func applyStatusIcon(for state: RuntimeState) {
         guard let button = statusItem.button else { return }
-        let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "VerbatimFlow status")?
-            .withSymbolConfiguration(configuration) {
-            image.isTemplate = true
+        if let image = makeMenuBarIcon(for: state) {
             button.image = image
             button.title = ""
             return
         }
 
-        // Fallback for environments where SF Symbols are unavailable.
+        // Fallback if icon resource is unavailable.
         button.image = nil
-        button.title = fallbackText
+        switch state {
+        case .stopped:
+            button.title = "VF⏸"
+        case .ready:
+            button.title = "VF"
+        case .recording:
+            button.title = "VF●"
+        case .processing:
+            button.title = "VF…"
+        }
+    }
+
+    private func makeMenuBarIcon(for state: RuntimeState) -> NSImage? {
+        guard let base = menuBarBaseIcon else {
+            return nil
+        }
+
+        let size = NSSize(width: 18, height: 18)
+        let canvas = NSImage(size: size)
+        canvas.lockFocus()
+        defer { canvas.unlockFocus() }
+
+        base.draw(
+            in: NSRect(origin: .zero, size: size),
+            from: .zero,
+            operation: .sourceOver,
+            fraction: 1.0
+        )
+
+        let badgeColor: NSColor?
+        switch state {
+        case .ready:
+            badgeColor = nil
+        case .stopped:
+            badgeColor = NSColor.systemGray
+        case .recording:
+            badgeColor = NSColor.systemRed
+        case .processing:
+            badgeColor = NSColor.systemOrange
+        }
+
+        if let badgeColor {
+            let diameter: CGFloat = 5.5
+            let inset: CGFloat = 0.7
+            let badgeRect = NSRect(
+                x: size.width - diameter - inset,
+                y: inset,
+                width: diameter,
+                height: diameter
+            )
+            let badgePath = NSBezierPath(ovalIn: badgeRect)
+            NSColor.white.setFill()
+            badgePath.fill()
+
+            let innerRect = badgeRect.insetBy(dx: 0.9, dy: 0.9)
+            NSBezierPath(ovalIn: innerRect).fill()
+            badgeColor.setFill()
+            NSBezierPath(ovalIn: innerRect).fill()
+        }
+
+        canvas.isTemplate = false
+        return canvas
     }
 
     private func refreshModeChecks() {
