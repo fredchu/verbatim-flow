@@ -73,6 +73,10 @@ codesign \
   --requirements "=designated => identifier \"$BUNDLE_ID\"" \
   "$APP_BUNDLE"
 
+# codesign can re-add FinderInfo with the invisible flag; strip it so the
+# .app is visible when copied into a DMG or opened in Finder.
+xattr -d com.apple.FinderInfo "$APP_BUNDLE" 2>/dev/null || true
+
 echo "[info] signature requirement:"
 codesign -d -r- "$APP_BUNDLE" 2>&1 | tail -n 1
 

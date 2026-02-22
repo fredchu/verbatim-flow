@@ -9,7 +9,9 @@ APP_BUNDLE="$DIST_DIR/${APP_NAME}.app"
 VOL_NAME="VerbatimFlow Installer"
 
 OUTPUT_DMG="${1:-$DIST_DIR/VerbatimFlow-installer.dmg}"
-STAGE_DIR="$DIST_DIR/.dmg-stage"
+# Stage in /tmp to avoid iCloud FileProvider injecting virtual extended
+# attributes (FinderInfo invisible flag) into the DMG contents.
+STAGE_DIR="/tmp/verbatimflow-dmg-stage"
 
 "$ROOT_DIR/scripts/build-native-app.sh"
 
@@ -21,7 +23,10 @@ fi
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"
 
-cp -R "$APP_BUNDLE" "$STAGE_DIR/"
+# Use ditto instead of cp -R to avoid copying virtual FileProvider/iCloud
+# extended attributes (e.g. FinderInfo with invisible flag) into the DMG.
+ditto "$APP_BUNDLE" "$STAGE_DIR/${APP_NAME}.app"
+xattr -cr "$STAGE_DIR/${APP_NAME}.app"
 ln -s /Applications "$STAGE_DIR/Applications"
 
 cat > "$STAGE_DIR/Install VerbatimFlow.txt" <<'TXT'
