@@ -11,13 +11,22 @@ BUNDLE_ID="${VERBATIMFLOW_BUNDLE_ID:-com.verbatimflow.app}"
 
 cd "$NATIVE_DIR"
 
-swift build -c release --product verbatim-flow
+swift build -c release --product verbatim-flow --arch arm64 --arch x86_64
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-cp "$NATIVE_DIR/.build/release/verbatim-flow" "$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
+# When building with --arch flags, SPM uses the Apple build system and places
+# the universal binary under .build/apple/Products/Release/ instead of
+# .build/release/.  Fall back to the latter for single-arch builds.
+UNIVERSAL_BIN="$NATIVE_DIR/.build/apple/Products/Release/verbatim-flow"
+SINGLE_ARCH_BIN="$NATIVE_DIR/.build/release/verbatim-flow"
+if [[ -f "$UNIVERSAL_BIN" ]]; then
+  cp "$UNIVERSAL_BIN" "$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
+else
+  cp "$SINGLE_ARCH_BIN" "$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
+fi
 chmod +x "$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
 
 "$ROOT_DIR/scripts/generate-app-icon.sh"
