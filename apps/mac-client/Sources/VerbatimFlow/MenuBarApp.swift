@@ -152,6 +152,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         action: #selector(setLanguageZhHans),
         keyEquivalent: ""
     )
+    private lazy var languageZhHantItem = NSMenuItem(
+        title: "Traditional Chinese (zh-Hant)",
+        action: #selector(setLanguageZhHant),
+        keyEquivalent: ""
+    )
     private lazy var languageEnUSItem = NSMenuItem(
         title: "English (en-US)",
         action: #selector(setLanguageEnUS),
@@ -379,11 +384,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
         languageSystemItem.target = self
         languageZhHansItem.target = self
+        languageZhHantItem.target = self
         languageEnUSItem.target = self
 
         let languageSubmenu = NSMenu(title: "Language")
         languageSubmenu.addItem(languageSystemItem)
         languageSubmenu.addItem(languageZhHansItem)
+        languageSubmenu.addItem(languageZhHantItem)
         languageSubmenu.addItem(languageEnUSItem)
         languageMenuItem.submenu = languageSubmenu
 
@@ -630,6 +637,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         languageInfoItem.title = "Language: \(controller.currentLocaleIdentifier)"
         languageSystemItem.state = languageSelection == AppPreferences.systemLanguageToken ? .on : .off
         languageZhHansItem.state = languageSelection == "zh-Hans" ? .on : .off
+        languageZhHantItem.state = languageSelection == "zh-Hant" ? .on : .off
         languageEnUSItem.state = languageSelection == "en-US" ? .on : .off
     }
 
@@ -844,6 +852,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     @objc
     private func setLanguageZhHans() {
         setLanguageSelection("zh-Hans")
+    }
+
+    @objc
+    private func setLanguageZhHant() {
+        setLanguageSelection("zh-Hant")
     }
 
     @objc
