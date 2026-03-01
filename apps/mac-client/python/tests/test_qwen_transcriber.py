@@ -1,5 +1,5 @@
 import unittest
-from verbatim_flow.qwen_transcriber import _resolve_language, _contains_cjk, _convert_s2t
+from verbatim_flow.qwen_transcriber import _resolve_language, _contains_cjk, _convert_s2t, _model_cache_path
 
 
 class TestResolveLanguage(unittest.TestCase):
@@ -46,3 +46,10 @@ class TestConvertS2T(unittest.TestCase):
 
     def test_english_unchanged(self):
         self.assertEqual(_convert_s2t("hello"), "hello")
+
+
+class TestModelCachePath(unittest.TestCase):
+    def test_cache_path_format(self):
+        path = _model_cache_path("mlx-community/Qwen3-ASR-0.6B-8bit")
+        self.assertEqual(path.name, "models--mlx-community--Qwen3-ASR-0.6B-8bit")
+        self.assertTrue(str(path).endswith("huggingface/hub/models--mlx-community--Qwen3-ASR-0.6B-8bit"))
