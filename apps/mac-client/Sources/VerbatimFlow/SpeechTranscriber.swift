@@ -136,13 +136,16 @@ final class SpeechTranscriber {
             }
         case .qwen:
             let qwenModelId = entry.qwenModelRawValue ?? QwenModel.small.rawValue
+            let languageCode = Self.qwenLanguageParam(from: entry.localeIdentifier)
+            let outputLocale: String? = (languageCode == nil) ? entry.localeIdentifier : nil
             transcript = try await withCheckedThrowingContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
                     do {
                         let text = try Self.transcribeQwenAudioFile(
                             audioURL: entry.audioFileURL,
                             model: qwenModelId,
-                            languageCode: nil
+                            languageCode: languageCode,
+                            outputLocale: outputLocale
                         )
                         continuation.resume(returning: text)
                     } catch {
@@ -356,6 +359,8 @@ final class SpeechTranscriber {
         }
 
         let modelId = qwenModel.rawValue
+        let languageCode = Self.qwenLanguageParam(from: localeIdentifier)
+        let outputLocale: String? = (languageCode == nil) ? localeIdentifier : nil
 
         do {
             let transcript = try await withCheckedThrowingContinuation { continuation in
@@ -364,7 +369,8 @@ final class SpeechTranscriber {
                         let text = try Self.transcribeQwenAudioFile(
                             audioURL: recordingURL,
                             model: modelId,
-                            languageCode: nil
+                            languageCode: languageCode,
+                            outputLocale: outputLocale
                         )
                         continuation.resume(returning: text)
                     } catch {
@@ -688,7 +694,8 @@ final class SpeechTranscriber {
     private nonisolated static func transcribeQwenAudioFile(
         audioURL: URL,
         model: String,
-        languageCode: String?
+        languageCode: String?,
+        outputLocale: String? = nil
     ) throws -> String {
         guard let scriptURL = resolveQwenScriptURL() else {
             throw AppError.qwenScriptNotFound
@@ -714,11 +721,12 @@ final class SpeechTranscriber {
         if let languageCode, !languageCode.isEmpty {
             process.arguments?.append(contentsOf: ["--language", languageCode])
         }
+        if let outputLocale, !outputLocale.isEmpty {
+            process.arguments?.append(contentsOf: ["--output-locale", outputLocale])
+        }
 
-        // Use cached model without network authentication, and ensure
-        // Homebrew tools (ffmpeg) are reachable for audio decoding.
+        // Ensure Homebrew tools (ffmpeg) are reachable for audio decoding.
         var env = ProcessInfo.processInfo.environment
-        env["HF_HUB_OFFLINE"] = "1"
         let currentPath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
         let homebrewPaths = ["/opt/homebrew/bin", "/usr/local/bin"]
         let missingPaths = homebrewPaths.filter { !currentPath.contains($0) }
@@ -726,22 +734,6 @@ final class SpeechTranscriber {
             env["PATH"] = (missingPaths + [currentPath]).joined(separator: ":")
         }
         process.environment = env
-
-        // --- DEBUG DIAGNOSTICS (temporary) ---
-        let diag = """
-        [qwen-diag] scriptURL=\(scriptURL.path)
-        [qwen-diag] scriptURL.standardized=\(scriptURL.standardizedFileURL.path)
-        [qwen-diag] pythonURL=\(process.executableURL?.path ?? "nil")
-        [qwen-diag] arguments=\(process.arguments ?? [])
-        [qwen-diag] env.PATH=\(env["PATH"] ?? "nil")
-        [qwen-diag] env.HOME=\(env["HOME"] ?? "nil")
-        [qwen-diag] env.HF_HUB_OFFLINE=\(env["HF_HUB_OFFLINE"] ?? "nil")
-        [qwen-diag] Bundle.main.executableURL=\(Bundle.main.executableURL?.path ?? "nil")
-        [qwen-diag] Bundle.main.resourceURL=\(Bundle.main.resourceURL?.path ?? "nil")
-        [qwen-diag] cwd=\(FileManager.default.currentDirectoryPath)
-        """
-        try? diag.write(toFile: "/tmp/verbatim-qwen-diag.log", atomically: true, encoding: .utf8)
-        // --- END DEBUG ---
 
         process.standardOutput = outputPipe
         process.standardError = errorPipe
@@ -860,6 +852,19 @@ final class SpeechTranscriber {
 
         let languageCode = Locale(identifier: localeIdentifier).language.languageCode?.identifier
         return languageCode?.isEmpty == false ? languageCode : nil
+    }
+
+    private nonisolated static func qwenLanguageParam(from localeIdentifier: String) -> String? {
+        let lowercased = localeIdentifier.lowercased()
+        if lowercased == "system" || lowercased.isEmpty {
+            return nil
+        }
+        // Pass full locale for zh variants so Python can distinguish Hant/Hans.
+        if lowercased.hasPrefix("zh") {
+            return localeIdentifier
+        }
+        // For non-Chinese locales, pass just the language prefix.
+        return Locale(identifier: localeIdentifier).language.languageCode?.identifier
     }
 
     private func resolveSpeechAuthorization() async -> Bool {
