@@ -23,7 +23,7 @@ struct TextGuard {
                 return GuardedText(text: formatted, fellBackToRaw: false)
             }
             return GuardedText(text: trimmedRaw, fellBackToRaw: true)
-        case .clarify:
+        case .clarify, .localRewrite:
             let clarified = clarifyNormalize(trimmedRaw)
             return GuardedText(text: clarified.isEmpty ? trimmedRaw : clarified, fellBackToRaw: false)
         }
