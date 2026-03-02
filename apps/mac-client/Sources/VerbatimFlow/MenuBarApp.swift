@@ -346,6 +346,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         engineWhisperItem.target = self
         engineOpenAIItem.target = self
         engineQwenItem.target = self
+        engineMlxWhisperItem.target = self
         let engineSubmenu = NSMenu(title: "Recognition Engine")
         engineSubmenu.addItem(engineAppleItem)
         engineSubmenu.addItem(engineWhisperItem)
