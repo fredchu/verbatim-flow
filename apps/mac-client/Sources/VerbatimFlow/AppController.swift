@@ -155,7 +155,7 @@ final class AppController {
 
         primaryHotkeyMonitor = makeHotkeyMonitor(
             hotkey: hotkey,
-            segmentMode: mode,
+            segmentMode: nil,
             monitorLabel: "primary"
         )
         primaryHotkeyMonitor?.start()
@@ -822,7 +822,7 @@ final class AppController {
 
     private func makeHotkeyMonitor(
         hotkey: Hotkey,
-        segmentMode: OutputMode,
+        segmentMode: OutputMode?,
         monitorLabel: String
     ) -> HotkeyMonitor {
         HotkeyMonitor(
@@ -840,7 +840,7 @@ final class AppController {
                 }
 
                 let accepted = MainActor.assumeIsolated {
-                    self.shouldAcceptHotkeyPress(segmentMode: segmentMode, monitorLabel: monitorLabel)
+                    self.shouldAcceptHotkeyPress(segmentMode: segmentMode ?? self.mode, monitorLabel: monitorLabel)
                 }
                 guard accepted else {
                     RuntimeLogger.log("[hotkey-bridge] onPressed callback rejected by state gate monitor=\(monitorLabel)")
