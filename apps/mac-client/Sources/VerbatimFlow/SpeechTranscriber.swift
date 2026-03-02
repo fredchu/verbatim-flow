@@ -428,6 +428,7 @@ final class SpeechTranscriber {
         outputPipe: Pipe,
         errorPipe: Pipe
     ) throws -> (stdout: String, stderr: String) {
+        let lock = NSLock()
         var outputData = Data()
         var errorData = Data()
 
@@ -435,10 +436,16 @@ final class SpeechTranscriber {
         let errorHandle = errorPipe.fileHandleForReading
 
         outputHandle.readabilityHandler = { handle in
-            outputData.append(handle.availableData)
+            let data = handle.availableData
+            lock.lock()
+            outputData.append(data)
+            lock.unlock()
         }
         errorHandle.readabilityHandler = { handle in
-            errorData.append(handle.availableData)
+            let data = handle.availableData
+            lock.lock()
+            errorData.append(data)
+            lock.unlock()
         }
 
         try process.run()
@@ -446,8 +453,11 @@ final class SpeechTranscriber {
 
         outputHandle.readabilityHandler = nil
         errorHandle.readabilityHandler = nil
+
+        lock.lock()
         outputData.append(outputHandle.readDataToEndOfFile())
         errorData.append(errorHandle.readDataToEndOfFile())
+        lock.unlock()
 
         let stdout = String(data: outputData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
