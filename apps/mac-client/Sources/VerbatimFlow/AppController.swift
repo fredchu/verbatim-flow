@@ -601,6 +601,23 @@ final class AppController {
             }
         }
 
+        if commandParsed.effectiveMode == .localRewrite {
+            do {
+                let textToRewrite = finalText
+                let localeToRewrite = localeIdentifier
+                let rewritten = try await Task.detached(priority: .userInitiated) {
+                    try LocalRewriter.rewrite(
+                        text: textToRewrite,
+                        localeIdentifier: localeToRewrite
+                    )
+                }.value
+                finalText = rewritten.text
+                emit("[local-rewrite] ollama rewrite applied model=\(rewritten.model)")
+            } catch {
+                emit("[local-rewrite] ollama rewrite unavailable, fallback to rules: \(error)")
+            }
+        }
+
         onTranscriptCommitted?(finalText)
 
         if guarded.fellBackToRaw {
