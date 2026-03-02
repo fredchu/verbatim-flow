@@ -68,6 +68,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         action: #selector(setEngineQwen),
         keyEquivalent: ""
     )
+    private lazy var engineMlxWhisperItem = NSMenuItem(
+        title: "MLX Whisper",
+        action: #selector(setEngineMlxWhisper),
+        keyEquivalent: ""
+    )
 
     private let qwenModelMenuItem = NSMenuItem(title: "Qwen Model", action: nil, keyEquivalent: "")
     private lazy var qwenModelSmallItem = NSMenuItem(
@@ -346,6 +351,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         engineSubmenu.addItem(engineWhisperItem)
         engineSubmenu.addItem(engineOpenAIItem)
         engineSubmenu.addItem(engineQwenItem)
+        engineSubmenu.addItem(engineMlxWhisperItem)
         engineMenuItem.submenu = engineSubmenu
 
         qwenModelSmallItem.target = self
@@ -601,6 +607,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         engineWhisperItem.state = currentEngine == .whisper ? .on : .off
         engineOpenAIItem.state = currentEngine == .openai ? .on : .off
         engineQwenItem.state = currentEngine == .qwen ? .on : .off
+        engineMlxWhisperItem.state = currentEngine == .mlxWhisper ? .on : .off
 
         whisperModelSmallItem.state = currentWhisperModel == .small ? .on : .off
         whisperModelTinyItem.state = currentWhisperModel == .tiny ? .on : .off
@@ -750,6 +757,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     @objc
     private func setEngineQwen() {
         setRecognitionEngine(.qwen)
+    }
+
+    @objc
+    private func setEngineMlxWhisper() {
+        setRecognitionEngine(.mlxWhisper)
     }
 
     private func setRecognitionEngine(_ engine: RecognitionEngine) {
