@@ -31,7 +31,7 @@ VerbatimFlow 是一個 macOS 選單列語音輸入工具，轉寫語音後直接
 
 - **按住說話** — 按住快捷鍵錄音，鬆開即轉寫並注入文字
 - **兩種模式** — `Standard`（忠實轉寫 + 基於規則的格式化：標點、空格、大小寫）和 `Clarify`（LLM 驅動的精簡改寫，主動選擇才生效）
-- **多引擎支援** — Apple Speech、本機 Whisper、OpenAI 雲端、Qwen3 ASR（本機，Apple Silicon）
+- **多引擎支援** — Apple Speech、本機 Whisper、OpenAI 雲端、Qwen3 ASR、MLX Whisper（本機，Apple Silicon）
 - **即時注入** — 透過 Accessibility API 直接在活躍 App 中插入文字
 - **一鍵撤回** — 回滾上一次插入的轉寫結果
 - **完全開源** — 每一行程式碼可讀；你的音訊，你做主
@@ -55,7 +55,7 @@ VerbatimFlow 是一個 macOS 選單列語音輸入工具，轉寫語音後直接
 | **全域快捷鍵穩定** | 按住錄，鬆開轉寫，不卡狀態。雙訊號 watchdog + handshake 機制防「偽按下」 |
 | **權限穩定** | 固定 bundle ID 簽名，重啟後不頻繁重新授權 |
 | **插入穩定** | AX → Cmd+V → Unicode typing 三級回落，Terminal / Codex / 標準編輯器都能上屏 |
-| **引擎可切換** | Apple Speech / Whisper (tiny–large-v3) / OpenAI Cloud (gpt-4o-mini-transcribe, whisper-1) / Qwen3 ASR (0.6B / 1.7B，Apple Silicon 本機) |
+| **引擎可切換** | Apple Speech / Whisper (tiny–large-v3) / OpenAI Cloud (gpt-4o-mini-transcribe, whisper-1) / Qwen3 ASR (0.6B / 1.7B，Apple Silicon 本機) / MLX Whisper (Large V3，Apple Silicon 本機) |
 | **失敗可恢復** | 轉寫失敗自動儲存錄音，選單一鍵重試，不丟內容 |
 | **設定可持久化** | 快捷鍵、模式、引擎、模型、語言等核心設定重啟保留 |
 
@@ -64,7 +64,7 @@ VerbatimFlow 是一個 macOS 選單列語音輸入工具，轉寫語音後直接
 - **選單列應用** — 以 V 形圖示駐留在 macOS 選單列，即時狀態徽標（● 錄音中、○ 處理中、— 已暫停）
 - **雙快捷鍵** — 主快捷鍵使用目前模式；副快捷鍵（`Cmd+Shift+Space`）臨時強制 Clarify 模式，僅作用一次
 - **快捷鍵預設切換** — 支援 `Ctrl+Shift+Space` / `Option+Space` / `Fn`，選單內切換無需重啟
-- **多引擎即時切換** — Apple Speech / Whisper / OpenAI 雲端 / Qwen3 ASR，選單內一鍵切換
+- **多引擎即時切換** — Apple Speech / Whisper / OpenAI 雲端 / Qwen3 ASR / MLX Whisper，選單內一鍵切換
 - **Whisper 模型選擇** — tiny / base / small / medium / large-v3
 - **Clarify 整理** — 支援 OpenAI 和 OpenRouter 雙通道，獨立設定 provider、model、API key
 - **術語詞典** — 自訂修正規則（詞彙修正 + `source => target` 替換）
@@ -173,8 +173,8 @@ verbatim-flow/
 │   │   └── ...
 │   ├── Tests/VerbatimFlowTests/ # 單元測試
 │   ├── python/                  # Python ASR 腳本
-│   │   ├── scripts/             # CLI 入口（transcribe_qwen.py）
-│   │   └── verbatim_flow/       # Qwen3 ASR 轉寫模組
+│   │   ├── scripts/             # CLI 入口（transcribe_qwen.py、transcribe_mlx_whisper.py）
+│   │   └── verbatim_flow/       # Qwen3 ASR 及 MLX Whisper 轉寫模組
 │   ├── Package.swift
 │   └── dist/                    # 建置產物（.app, .dmg）
 ├── packages/                    # 共用套件預留
@@ -214,6 +214,7 @@ verbatim-flow/
 - [x] 原生 Swift 路徑整合 Whisper 引擎
 - [x] 中英混合辨識最佳化
 - [x] Qwen3 ASR 本機引擎（0.6B / 1.7B，Apple Silicon）
+- [x] MLX Whisper 本機引擎（Large V3，Apple Silicon）
 - [x] 繁體中文（zh-Hant）語言選項
 - [x] Universal Binary（Intel + Apple Silicon）
 - [ ] 串流轉寫（邊說邊出字）
@@ -237,6 +238,7 @@ verbatim-flow/
 - [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — 基於 CTranslate2 的 Whisper 推理（Python MVP）
 - [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR) — 阿里 Qwen 團隊的多語言 ASR 模型
 - [mlx-audio](https://github.com/Blaizzy/mlx-audio) — Apple Silicon 最佳化的音訊 ML 框架
+- [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper) — Apple Silicon 上透過 MLX 執行 Whisper 推理
 - [OpenCC](https://github.com/BYVoid/OpenCC) — 簡繁中文轉換
 
 ## 授權條款
