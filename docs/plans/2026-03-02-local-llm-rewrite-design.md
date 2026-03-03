@@ -137,7 +137,7 @@ Text Guard 選單新增選項：
 
 | 檔案 | 變更 |
 |------|------|
-| `LocalRewriter.swift` | **新增**：Ollama HTTP 呼叫邏輯 |
+| `LocalRewriter.swift` | **新增**：LLM API HTTP 呼叫邏輯 |
 | `CLIConfig.swift` | 修改：TextGuardMode 新增 `localRewrite` |
 | `AppPreferences.swift` | 修改：持久化 localRewrite 設定 |
 | `AppController.swift` | 修改：commitTranscript 加入 LocalRewriter 路由 |
@@ -146,6 +146,6 @@ Text Guard 選單新增選項：
 
 ## Testing Strategy
 
-- Unit tests for LocalRewriter HTTP request construction (mock Ollama response)
-- Integration test with real Ollama (manual, not CI)
-- Test error scenarios: Ollama down, wrong model, timeout
+- Unit tests for LocalRewriter HTTP request construction (mock LLM response)
+- Integration test with real LM Studio (manual, not CI)
+- Test error scenarios: LLM server down, wrong model, timeout
