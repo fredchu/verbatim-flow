@@ -146,8 +146,12 @@ def call_llm(
     completion_tokens = usage.get("completion_tokens", 0)
     tokens_per_sec = completion_tokens / elapsed if elapsed > 0 else 0
 
+    content = data["choices"][0]["message"]["content"].strip()
+    # Strip <think>...</think> blocks from models that ignore /no_think
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
     return {
-        "content": data["choices"][0]["message"]["content"].strip(),
+        "content": content,
         "usage": usage,
         "elapsed_s": round(elapsed, 3),
         "tokens_per_sec": round(tokens_per_sec, 1),
