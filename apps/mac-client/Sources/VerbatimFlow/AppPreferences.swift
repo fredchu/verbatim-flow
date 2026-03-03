@@ -12,6 +12,11 @@ final class AppPreferences {
         static let openAIModel = "verbatimflow.openAIModel"
         static let qwenModel = "verbatimflow.qwenModel"
         static let mlxWhisperModel = "verbatimflow.mlxWhisperModel"
+        static let llmBaseURL = "verbatimflow.llmBaseURL"
+        static let punctuationModel = "verbatimflow.punctuationModel"
+        static let punctuationPrompt = "verbatimflow.punctuationPrompt"
+        static let localRewriteModel = "verbatimflow.localRewriteModel"
+        static let localRewritePrompt = "verbatimflow.localRewritePrompt"
     }
 
     private let defaults: UserDefaults
@@ -103,5 +108,54 @@ final class AppPreferences {
 
     func saveMlxWhisperModel(_ model: MlxWhisperModel) {
         defaults.set(model.rawValue, forKey: Key.mlxWhisperModel)
+    }
+
+    // MARK: - LLM Settings
+
+    func loadLLMBaseURL() -> String? {
+        defaults.string(forKey: Key.llmBaseURL)
+    }
+
+    func saveLLMBaseURL(_ value: String) {
+        defaults.set(value, forKey: Key.llmBaseURL)
+    }
+
+    func loadPunctuationModel() -> String? {
+        defaults.string(forKey: Key.punctuationModel)
+    }
+
+    func savePunctuationModel(_ value: String) {
+        defaults.set(value, forKey: Key.punctuationModel)
+    }
+
+    func loadPunctuationPrompt() -> String? {
+        defaults.string(forKey: Key.punctuationPrompt)
+    }
+
+    func savePunctuationPrompt(_ value: String) {
+        defaults.set(value, forKey: Key.punctuationPrompt)
+    }
+
+    func loadLocalRewriteModel() -> String? {
+        defaults.string(forKey: Key.localRewriteModel)
+    }
+
+    func saveLocalRewriteModel(_ value: String) {
+        defaults.set(value, forKey: Key.localRewriteModel)
+    }
+
+    func loadLocalRewritePrompt() -> String? {
+        defaults.string(forKey: Key.localRewritePrompt)
+    }
+
+    func saveLocalRewritePrompt(_ value: String) {
+        defaults.set(value, forKey: Key.localRewritePrompt)
+    }
+
+    func clearLLMSettings() {
+        for key in [Key.llmBaseURL, Key.punctuationModel, Key.punctuationPrompt,
+                    Key.localRewriteModel, Key.localRewritePrompt] {
+            defaults.removeObject(forKey: key)
+        }
     }
 }
