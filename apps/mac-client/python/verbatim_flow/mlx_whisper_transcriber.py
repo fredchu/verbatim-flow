@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import sys
 import urllib.request
 
@@ -85,15 +86,15 @@ def _model_cache_path(model_id: str) -> Path:
 
 
 def _add_punctuation(text: str) -> str:
-    """Add punctuation to unpunctuated Chinese text via Ollama."""
+    """Add punctuation to unpunctuated Chinese text via OpenAI-compatible LLM API."""
     if not text:
         return text
 
     import json
     import os
 
-    base_url = os.environ.get("VERBATIMFLOW_OLLAMA_BASE_URL", "http://localhost:11434")
-    model = os.environ.get("VERBATIMFLOW_LOCAL_REWRITE_MODEL", "qwen3:8b")
+    base_url = os.environ.get("VERBATIMFLOW_LLM_BASE_URL", "http://localhost:1234")
+    model = os.environ.get("VERBATIMFLOW_LLM_MODEL", "qwen/qwen3-vl-8b")
 
     payload = json.dumps({
         "model": model,
@@ -108,18 +109,21 @@ def _add_punctuation(text: str) -> str:
             },
             {"role": "user", "content": text},
         ],
+        "temperature": 0.1,
+        "max_tokens": 2048,
         "stream": False,
     }).encode()
 
     req = urllib.request.Request(
-        f"{base_url}/api/chat",
+        f"{base_url}/v1/chat/completions",
         data=payload,
         headers={"Content-Type": "application/json"},
     )
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             result = json.loads(resp.read())
-            return result["message"]["content"].strip()
+            content = result["choices"][0]["message"]["content"].strip()
+            return re.sub(r"<think>[\s\S]*?</think>", "", content).strip()
     except Exception:
         return text  # Fallback: return unpunctuated text
 
