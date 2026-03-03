@@ -27,6 +27,7 @@ final class AppController {
     private var whisperModel: WhisperModel
     private var openAIModel: OpenAITranscriptionModel
     private var qwenModel: QwenModel
+    private var mlxWhisperModel: MlxWhisperModel
     private let whisperComputeType: String
     private var transcriber: SpeechTranscriber
     private let injector = TextInjector()
@@ -69,6 +70,7 @@ final class AppController {
         self.whisperModel = config.whisperModel
         self.openAIModel = config.openAIModel
         self.qwenModel = config.qwenModel
+        self.mlxWhisperModel = config.mlxWhisperModel
         self.whisperComputeType = config.whisperComputeType
         self.hotkey = config.hotkey
         self.clarifyHotkey = Self.defaultClarifyHotkey
@@ -81,6 +83,7 @@ final class AppController {
             whisperModel: config.whisperModel,
             openAIModel: config.openAIModel,
             qwenModel: config.qwenModel,
+            mlxWhisperModel: config.mlxWhisperModel,
             whisperComputeType: config.whisperComputeType,
             languageIsAutoDetect: languageIsAutoDetect
         )
@@ -120,6 +123,10 @@ final class AppController {
 
     var currentQwenModel: QwenModel {
         qwenModel
+    }
+
+    var currentMlxWhisperModel: MlxWhisperModel {
+        mlxWhisperModel
     }
 
     var isRunning: Bool {
@@ -333,6 +340,21 @@ final class AppController {
         qwenModel = model
         rebuildTranscriber()
         emit("[config] qwen model set to \(model.displayName)")
+    }
+
+    func setMlxWhisperModel(_ model: MlxWhisperModel) {
+        guard mlxWhisperModel != model else {
+            return
+        }
+
+        guard !isRecording else {
+            emit("[warn] stop recording before changing MLX Whisper model")
+            return
+        }
+
+        mlxWhisperModel = model
+        rebuildTranscriber()
+        emit("[config] mlx whisper model set to \(model.displayName)")
     }
 
     func copyTranscriptToClipboard(_ text: String) {
@@ -643,6 +665,7 @@ final class AppController {
             whisperModel: whisperModel,
             openAIModel: openAIModel,
             qwenModel: qwenModel,
+            mlxWhisperModel: mlxWhisperModel,
             whisperComputeType: whisperComputeType,
             languageIsAutoDetect: languageIsAutoDetect
         )

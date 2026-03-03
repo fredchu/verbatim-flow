@@ -12,6 +12,7 @@ final class SpeechTranscriber {
     private let whisperModel: WhisperModel
     private let openAIModel: OpenAITranscriptionModel
     private let qwenModel: QwenModel
+    private let mlxWhisperModel: MlxWhisperModel
     private let whisperComputeType: String
     private let languageIsAutoDetect: Bool
 
@@ -34,6 +35,7 @@ final class SpeechTranscriber {
         whisperModel: WhisperModel,
         openAIModel: OpenAITranscriptionModel,
         qwenModel: QwenModel,
+        mlxWhisperModel: MlxWhisperModel,
         whisperComputeType: String,
         languageIsAutoDetect: Bool = false
     ) {
@@ -43,6 +45,7 @@ final class SpeechTranscriber {
         self.whisperModel = whisperModel
         self.openAIModel = openAIModel
         self.qwenModel = qwenModel
+        self.mlxWhisperModel = mlxWhisperModel
         self.whisperComputeType = whisperComputeType
         self.languageIsAutoDetect = languageIsAutoDetect
         self.failedRecordingEntry = FailedRecordingStore.load()
@@ -162,6 +165,7 @@ final class SpeechTranscriber {
                 }
             }
         case .mlxWhisper:
+            let mlxWhisperModelId = (entry.mlxWhisperModel ?? .whisperLargeV3).rawValue
             let languageCode = Self.mlxWhisperLanguageParam(from: entry.localeIdentifier, isAutoDetect: languageIsAutoDetect)
             let outputLocale: String? = (languageCode == nil) ? entry.localeIdentifier : nil
             transcript = try await withCheckedThrowingContinuation { continuation in
@@ -169,6 +173,7 @@ final class SpeechTranscriber {
                     do {
                         let text = try Self.transcribeMlxWhisperAudioFile(
                             audioURL: entry.audioFileURL,
+                            model: mlxWhisperModelId,
                             languageCode: languageCode,
                             outputLocale: outputLocale
                         )
@@ -427,6 +432,7 @@ final class SpeechTranscriber {
             return ""
         }
 
+        let modelId = mlxWhisperModel.rawValue
         let languageCode = Self.mlxWhisperLanguageParam(from: localeIdentifier, isAutoDetect: languageIsAutoDetect)
         let outputLocale: String? = (languageCode == nil) ? localeIdentifier : nil
 
@@ -436,6 +442,7 @@ final class SpeechTranscriber {
                     do {
                         let text = try Self.transcribeMlxWhisperAudioFile(
                             audioURL: recordingURL,
+                            model: modelId,
                             languageCode: languageCode,
                             outputLocale: outputLocale
                         )
@@ -462,6 +469,7 @@ final class SpeechTranscriber {
             whisperComputeType: whisperComputeType,
             openAIModel: openAIModel,
             qwenModel: qwenModel,
+            mlxWhisperModel: mlxWhisperModel,
             durationSeconds: durationSec
         )
         if let entry {
@@ -861,6 +869,7 @@ final class SpeechTranscriber {
 
     private nonisolated static func transcribeMlxWhisperAudioFile(
         audioURL: URL,
+        model: String,
         languageCode: String?,
         outputLocale: String? = nil
     ) throws -> String {
@@ -878,6 +887,8 @@ final class SpeechTranscriber {
                 scriptURL.path,
                 "--audio",
                 audioURL.path,
+                "--model",
+                model,
             ]
         } else {
             throw AppError.pythonRuntimeNotFound

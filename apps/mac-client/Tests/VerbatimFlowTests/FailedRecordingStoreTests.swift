@@ -18,6 +18,7 @@ final class FailedRecordingStoreTests: XCTestCase {
             whisperComputeType: "int8",
             openAIModel: .gpt4oMiniTranscribe,
             qwenModel: .small,
+            mlxWhisperModel: nil,
             durationSeconds: 3.2,
             baseDirectory: root
         )
@@ -49,6 +50,7 @@ final class FailedRecordingStoreTests: XCTestCase {
             whisperComputeType: "int8",
             openAIModel: .gpt4oMiniTranscribe,
             qwenModel: .large,
+            mlxWhisperModel: nil,
             durationSeconds: 5.0,
             baseDirectory: root
         )

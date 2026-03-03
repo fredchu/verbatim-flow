@@ -264,6 +264,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         let whisperModel = MenuBarApp.resolveWhisperModel(config: config, preferences: preferences)
         let openAIModel = MenuBarApp.resolveOpenAIModel(config: config, preferences: preferences)
         let qwenModel = MenuBarApp.resolveQwenModel(config: config, preferences: preferences)
+        let mlxWhisperModel = MenuBarApp.resolveMlxWhisperModel(config: config, preferences: preferences)
         let hotkey = MenuBarApp.resolveHotkey(config: config, preferences: preferences)
         let languageSelection = MenuBarApp.resolveLanguageSelection(config: config, preferences: preferences)
         let localeIdentifier = MenuBarApp.localeIdentifier(forSelection: languageSelection)
@@ -275,6 +276,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
             whisperComputeType: config.whisperComputeType,
             openAIModel: openAIModel,
             qwenModel: qwenModel,
+            mlxWhisperModel: mlxWhisperModel,
             localeIdentifier: localeIdentifier,
             hotkey: hotkey,
             requireOnDeviceRecognition: config.requireOnDeviceRecognition,
@@ -1208,6 +1210,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
             return config.qwenModel
         }
         return preferences.loadQwenModel() ?? config.qwenModel
+    }
+
+    private static func resolveMlxWhisperModel(config: CLIConfig, preferences: AppPreferences) -> MlxWhisperModel {
+        if hasCLIFlag("--mlx-whisper-model") {
+            return config.mlxWhisperModel
+        }
+        return preferences.loadMlxWhisperModel() ?? config.mlxWhisperModel
     }
 
     private static func resolveHotkey(config: CLIConfig, preferences: AppPreferences) -> Hotkey {

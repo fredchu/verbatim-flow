@@ -53,6 +53,18 @@ enum QwenModel: String, CaseIterable {
     }
 }
 
+enum MlxWhisperModel: String, CaseIterable {
+    case whisperLargeV3 = "mlx-community/whisper-large-v3-mlx"
+    case breezeASR25    = "eoleedi/Breeze-ASR-25-mlx"
+
+    var displayName: String {
+        switch self {
+        case .whisperLargeV3: return "Whisper Large V3"
+        case .breezeASR25:    return "Breeze ASR 25"
+        }
+    }
+}
+
 enum WhisperModel: String, CaseIterable {
     case tiny
     case base
@@ -95,6 +107,7 @@ struct CLIConfig {
     let whisperComputeType: String
     let openAIModel: OpenAITranscriptionModel
     let qwenModel: QwenModel
+    let mlxWhisperModel: MlxWhisperModel
     let localeIdentifier: String
     let hotkey: Hotkey
     let requireOnDeviceRecognition: Bool
@@ -107,6 +120,7 @@ struct CLIConfig {
         whisperComputeType: "int8",
         openAIModel: .gpt4oMiniTranscribe,
         qwenModel: .small,
+        mlxWhisperModel: .whisperLargeV3,
         localeIdentifier: Locale.current.identifier,
         hotkey: .default,
         requireOnDeviceRecognition: false,
@@ -120,6 +134,7 @@ struct CLIConfig {
         whisperComputeType: String? = nil,
         openAIModel: OpenAITranscriptionModel? = nil,
         qwenModel: QwenModel? = nil,
+        mlxWhisperModel: MlxWhisperModel? = nil,
         localeIdentifier: String? = nil,
         hotkey: Hotkey? = nil,
         requireOnDeviceRecognition: Bool? = nil,
@@ -132,6 +147,7 @@ struct CLIConfig {
             whisperComputeType: whisperComputeType ?? self.whisperComputeType,
             openAIModel: openAIModel ?? self.openAIModel,
             qwenModel: qwenModel ?? self.qwenModel,
+            mlxWhisperModel: mlxWhisperModel ?? self.mlxWhisperModel,
             localeIdentifier: localeIdentifier ?? self.localeIdentifier,
             hotkey: hotkey ?? self.hotkey,
             requireOnDeviceRecognition: requireOnDeviceRecognition ?? self.requireOnDeviceRecognition,
@@ -183,6 +199,12 @@ struct CLIConfig {
                     throw ConfigError.invalidValue("--qwen-model", QwenModel.allCases.map(\.rawValue).joined(separator: " | "))
                 }
                 config = config.replacing(qwenModel: model)
+            case "--mlx-whisper-model":
+                index += 1
+                guard index < args.count, let model = MlxWhisperModel(rawValue: args[index]) else {
+                    throw ConfigError.invalidValue("--mlx-whisper-model", MlxWhisperModel.allCases.map(\.rawValue).joined(separator: " | "))
+                }
+                config = config.replacing(mlxWhisperModel: model)
             case "--locale":
                 index += 1
                 guard index < args.count else {
@@ -235,7 +257,7 @@ enum HelpPrinter {
             "verbatim-flow",
             "",
             "Usage:",
-            "  verbatim-flow [--mode raw|format-only|clarify] [--engine apple|whisper|openai|qwen|mlx-whisper] [--whisper-model tiny|base|small|medium|large-v3] [--whisper-compute-type int8|int8_float16|float16|float32] [--openai-model gpt-4o-mini-transcribe|whisper-1] [--qwen-model <hf-id>] [--locale <id>] [--hotkey ctrl+shift+space|shift+option] [--require-on-device] [--dry-run]",
+            "  verbatim-flow [--mode raw|format-only|clarify] [--engine apple|whisper|openai|qwen|mlx-whisper] [--whisper-model tiny|base|small|medium|large-v3] [--whisper-compute-type int8|int8_float16|float16|float32] [--openai-model gpt-4o-mini-transcribe|whisper-1] [--qwen-model <hf-id>] [--mlx-whisper-model <hf-id>] [--locale <id>] [--hotkey ctrl+shift+space|shift+option] [--require-on-device] [--dry-run]",
             "",
             "Defaults:",
             "  --mode raw",
@@ -244,6 +266,7 @@ enum HelpPrinter {
             "  --whisper-compute-type int8",
             "  --openai-model gpt-4o-mini-transcribe",
             "  --qwen-model \(QwenModel.small.rawValue)",
+            "  --mlx-whisper-model \(MlxWhisperModel.whisperLargeV3.rawValue)",
             "  --locale system locale",
             "  --hotkey ctrl+shift+space",
             ""

@@ -11,6 +11,7 @@ final class AppPreferences {
         static let whisperModel = "verbatimflow.whisperModel"
         static let openAIModel = "verbatimflow.openAIModel"
         static let qwenModel = "verbatimflow.qwenModel"
+        static let mlxWhisperModel = "verbatimflow.mlxWhisperModel"
     }
 
     private let defaults: UserDefaults
@@ -91,5 +92,16 @@ final class AppPreferences {
 
     func saveQwenModel(_ model: QwenModel) {
         defaults.set(model.rawValue, forKey: Key.qwenModel)
+    }
+
+    func loadMlxWhisperModel() -> MlxWhisperModel? {
+        guard let rawValue = defaults.string(forKey: Key.mlxWhisperModel) else {
+            return nil
+        }
+        return MlxWhisperModel(rawValue: rawValue)
+    }
+
+    func saveMlxWhisperModel(_ model: MlxWhisperModel) {
+        defaults.set(model.rawValue, forKey: Key.mlxWhisperModel)
     }
 }

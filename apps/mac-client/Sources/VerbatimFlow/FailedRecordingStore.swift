@@ -9,6 +9,7 @@ enum FailedRecordingStore {
         let whisperComputeType: String
         let openAIModelRawValue: String
         let qwenModelRawValue: String?
+        let mlxWhisperModelRawValue: String?
         let createdAt: Date
         let durationSeconds: TimeInterval
 
@@ -31,6 +32,10 @@ enum FailedRecordingStore {
         var qwenModel: QwenModel? {
             guard let raw = qwenModelRawValue else { return nil }
             return QwenModel(rawValue: raw)
+        }
+
+        var mlxWhisperModel: MlxWhisperModel? {
+            mlxWhisperModelRawValue.flatMap { MlxWhisperModel(rawValue: $0) }
         }
     }
 
@@ -87,6 +92,7 @@ enum FailedRecordingStore {
         whisperComputeType: String,
         openAIModel: OpenAITranscriptionModel,
         qwenModel: QwenModel,
+        mlxWhisperModel: MlxWhisperModel?,
         durationSeconds: TimeInterval,
         baseDirectory: URL? = nil
     ) -> Entry? {
@@ -112,6 +118,7 @@ enum FailedRecordingStore {
                 whisperComputeType: whisperComputeType,
                 openAIModelRawValue: openAIModel.rawValue,
                 qwenModelRawValue: qwenModel.rawValue,
+                mlxWhisperModelRawValue: mlxWhisperModel?.rawValue,
                 createdAt: Date(),
                 durationSeconds: durationSeconds
             )
