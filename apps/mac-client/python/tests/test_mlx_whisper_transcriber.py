@@ -159,3 +159,21 @@ class TestAddPunctuation(unittest.TestCase):
 
         result = _add_punctuation("好所以我們繼續")
         self.assertEqual(result, "好，所以我們繼續。")
+
+    @patch("verbatim_flow.mlx_whisper_transcriber.urllib.request.urlopen")
+    def test_custom_prompt_from_env(self, mock_urlopen):
+        """VERBATIMFLOW_LLM_PROMPT env var should override the default system prompt."""
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "choices": [{"message": {"content": "自訂結果"}}]
+        }).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        custom_prompt = "你是測試用的自訂提示詞。/no_think"
+        with patch.dict("os.environ", {"VERBATIMFLOW_LLM_PROMPT": custom_prompt}):
+            _add_punctuation("測試文字")
+
+        call_data = json.loads(mock_urlopen.call_args[0][0].data)
+        self.assertEqual(call_data["messages"][0]["content"], custom_prompt)

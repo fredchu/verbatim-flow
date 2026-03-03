@@ -95,17 +95,19 @@ def _add_punctuation(text: str) -> str:
 
     base_url = os.environ.get("VERBATIMFLOW_LLM_BASE_URL", "http://localhost:1234")
     model = os.environ.get("VERBATIMFLOW_LLM_MODEL", "qwen/qwen3-vl-8b")
+    default_prompt = (
+        "你是標點符號專家。請為以下中文語音辨識文字加上適當的全形標點符號"
+        "（，。、？！：；「」『』《》）。只加標點，不改動任何文字內容。"
+        "直接輸出結果，不要解釋。/no_think"
+    )
+    prompt = os.environ.get("VERBATIMFLOW_LLM_PROMPT", default_prompt)
 
     payload = json.dumps({
         "model": model,
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "你是標點符號專家。請為以下中文語音辨識文字加上適當的全形標點符號"
-                    "（，。、？！：；「」『』《》）。只加標點，不改動任何文字內容。"
-                    "直接輸出結果，不要解釋。/no_think"
-                ),
+                "content": prompt,
             },
             {"role": "user", "content": text},
         ],
