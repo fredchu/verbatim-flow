@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm, generate_report, PROMPTS, DEFAULT_PROMPT
+from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm, generate_report, PROMPTS, DEFAULT_PROMPT, apply_terminology_regex
 
 class TestTerminologyScoring:
     def test_all_correct(self):
@@ -156,3 +156,26 @@ class TestReportGeneration:
         assert "# LLM ASR Post-Processing Benchmark" in report
         assert "qwen3-8b-8bit" in report
         assert "100.0" in report
+
+
+class TestTerminologyRegex:
+    def test_single_replacement(self):
+        result = apply_terminology_regex("使用歐拉瑪來跑模型")
+        assert result == "使用Ollama來跑模型"
+
+    def test_multiple_replacements(self):
+        result = apply_terminology_regex("Cloud Code的work flow可以自動Comet")
+        assert result == "Claude Code的workflow可以自動Commit"
+
+    def test_no_match_unchanged(self):
+        result = apply_terminology_regex("今天天氣很好")
+        assert result == "今天天氣很好"
+
+    def test_all_table_entries_applied(self):
+        assert "Ollama" in apply_terminology_regex("歐拉瑪")
+        assert "BROLL" in apply_terminology_regex("B肉")
+        assert "BROLL" in apply_terminology_regex("逼肉")
+        assert "token" in apply_terminology_regex("偷坑")
+        assert "級距" in apply_terminology_regex("集聚")
+        assert "MLX" in apply_terminology_regex("Emerald X")
+        assert "MLX" in apply_terminology_regex("M2X")

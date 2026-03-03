@@ -39,6 +39,16 @@ Chat GPT → ChatGPT
 Open CC → OpenCC
 Forced Aligner → ForcedAligner"""
 
+
+def apply_terminology_regex(text: str) -> str:
+    """Apply terminology corrections using string replacement."""
+    result = text
+    for line in TERMINOLOGY_TABLE.strip().split("\n"):
+        wrong, correct = line.split("→", 1)
+        result = result.replace(wrong.strip(), correct.strip())
+    return result
+
+
 PROMPTS = {
     "v1": """你是標點與術語校正器。
 規則：
