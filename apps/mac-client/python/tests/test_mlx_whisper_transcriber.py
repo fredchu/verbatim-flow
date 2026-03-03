@@ -81,7 +81,7 @@ class TestAddPunctuation(unittest.TestCase):
     def test_returns_punctuated_text(self, mock_urlopen):
         mock_resp = MagicMock()
         mock_resp.read.return_value = json.dumps({
-            "message": {"content": "好，所以我們繼續。"}
+            "choices": [{"message": {"content": "好，所以我們繼續。"}}]
         }).encode()
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
@@ -101,7 +101,7 @@ class TestAddPunctuation(unittest.TestCase):
     def test_sends_correct_payload(self, mock_urlopen):
         mock_resp = MagicMock()
         mock_resp.read.return_value = json.dumps({
-            "message": {"content": "測試。"}
+            "choices": [{"message": {"content": "測試。"}}]
         }).encode()
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
@@ -109,25 +109,26 @@ class TestAddPunctuation(unittest.TestCase):
 
         _add_punctuation("測試")
 
-        # Verify the request was made with correct URL and payload.
         call_args = mock_urlopen.call_args
         req = call_args[0][0]
-        self.assertEqual(req.full_url, "http://localhost:11434/api/chat")
+        self.assertEqual(req.full_url, "http://localhost:1234/v1/chat/completions")
         payload = json.loads(req.data)
-        self.assertEqual(payload["model"], "qwen3:8b")
+        self.assertEqual(payload["model"], "qwen/qwen3-vl-8b")
         self.assertEqual(payload["stream"], False)
+        self.assertEqual(payload["temperature"], 0.1)
+        self.assertEqual(payload["max_tokens"], 2048)
         self.assertEqual(payload["messages"][1]["content"], "測試")
         self.assertIn("/no_think", payload["messages"][0]["content"])
 
     @patch.dict("os.environ", {
-        "VERBATIMFLOW_OLLAMA_BASE_URL": "http://myhost:9999",
-        "VERBATIMFLOW_LOCAL_REWRITE_MODEL": "llama3:latest",
+        "VERBATIMFLOW_LLM_BASE_URL": "http://myhost:9999",
+        "VERBATIMFLOW_LLM_MODEL": "llama3:latest",
     })
     @patch("verbatim_flow.mlx_whisper_transcriber.urllib.request.urlopen")
     def test_respects_env_vars(self, mock_urlopen):
         mock_resp = MagicMock()
         mock_resp.read.return_value = json.dumps({
-            "message": {"content": "結果。"}
+            "choices": [{"message": {"content": "結果。"}}]
         }).encode()
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
@@ -136,7 +137,7 @@ class TestAddPunctuation(unittest.TestCase):
         _add_punctuation("結果")
 
         req = mock_urlopen.call_args[0][0]
-        self.assertEqual(req.full_url, "http://myhost:9999/api/chat")
+        self.assertEqual(req.full_url, "http://myhost:9999/v1/chat/completions")
         payload = json.loads(req.data)
         self.assertEqual(payload["model"], "llama3:latest")
 
@@ -145,3 +146,16 @@ class TestAddPunctuation(unittest.TestCase):
         result = _add_punctuation("")
         self.assertEqual(result, "")
         mock_urlopen.assert_not_called()
+
+    @patch("verbatim_flow.mlx_whisper_transcriber.urllib.request.urlopen")
+    def test_strips_think_tags_from_response(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "choices": [{"message": {"content": "<think>思考中...</think>好，所以我們繼續。"}}]
+        }).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        result = _add_punctuation("好所以我們繼續")
+        self.assertEqual(result, "好，所以我們繼續。")
