@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """LLM ASR Post-Processing Benchmark Tool."""
 
+import argparse
+import json
 import re
 import time
 from datetime import datetime
 from difflib import SequenceMatcher
+from pathlib import Path
 
 import requests
 
@@ -207,3 +210,134 @@ def generate_report(results: dict) -> str:
             lines.append("")
 
     return "\n".join(lines)
+
+
+def run_benchmark(
+    testcases_path: str,
+    model: str,
+    base_url: str = LM_STUDIO_DEFAULT_URL,
+) -> dict:
+    with open(testcases_path) as f:
+        testcases = json.load(f)
+
+    cases = []
+    for tc in testcases:
+        print(f"  [{tc['id']}] {tc['input'][:40]}...")
+        result = call_llm(tc["input"], model=model, base_url=base_url)
+
+        term_score = score_terminology(result["content"], tc["terminology_corrections"])
+        pres_score = score_preservation(tc["input"], result["content"], tc.get("terminology_pairs", []))
+        prec, rec, f1 = score_punctuation(tc["expected"], result["content"])
+        weighted = term_score * 0.4 + pres_score * 0.3 + f1 * 0.3
+
+        term_detail = [
+            (term, term in result["content"])
+            for term in tc["terminology_corrections"]
+        ]
+
+        cases.append({
+            "id": tc["id"],
+            "type": tc["type"],
+            "input": tc["input"],
+            "expected": tc["expected"],
+            "output": result["content"],
+            "terminology_score": term_score,
+            "preservation_score": pres_score,
+            "punctuation_precision": prec,
+            "punctuation_recall": rec,
+            "punctuation_f1": f1,
+            "weighted_score": round(weighted, 2),
+            "tokens_per_sec": result["tokens_per_sec"],
+            "elapsed_s": result["elapsed_s"],
+            "terminology_detail": term_detail,
+        })
+
+        status = "✓" if term_score == 100 else f"術語:{term_score:.0f}"
+        print(f"         → {status} | 保留:{pres_score:.0f} | 標點F1:{f1:.0f} | {result['tokens_per_sec']:.0f} tok/s")
+
+    avg = lambda key: round(sum(c[key] for c in cases) / len(cases), 2)
+
+    return {
+        "cases": cases,
+        "avg_terminology": avg("terminology_score"),
+        "avg_preservation": avg("preservation_score"),
+        "avg_punctuation_f1": avg("punctuation_f1"),
+        "avg_weighted": avg("weighted_score"),
+        "avg_tokens_per_sec": avg("tokens_per_sec"),
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="LLM ASR Post-Processing Benchmark")
+    parser.add_argument(
+        "--models", nargs="+",
+        help="Model IDs to test (default: all in DEFAULT_MODELS)",
+    )
+    parser.add_argument(
+        "--url", default=LM_STUDIO_DEFAULT_URL,
+        help=f"LM Studio API URL (default: {LM_STUDIO_DEFAULT_URL})",
+    )
+    args = parser.parse_args()
+
+    models = args.models or DEFAULT_MODELS
+
+    testcases_path = Path(__file__).parent / "benchmark_testcases.json"
+    output_dir = Path(__file__).parent / "benchmark_results"
+    output_dir.mkdir(exist_ok=True)
+
+    if not testcases_path.exists():
+        print(f"Error: {testcases_path} not found")
+        return
+
+    all_results = {"models": {}}
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    print("=" * 60)
+    print("LLM ASR Post-Processing Benchmark")
+    print("=" * 60)
+    print(f"Test cases: {testcases_path}")
+    print(f"LM Studio API: {args.url}")
+    print(f"Models to test: {len(models)}")
+    for m in models:
+        print(f"  - {m}")
+    print()
+
+    for i, model in enumerate(models, 1):
+        print(f"\n{'='*60}")
+        print(f"[{i}/{len(models)}] 測試模型: {model}")
+        print(f"{'='*60}")
+        try:
+            model_results = run_benchmark(
+                str(testcases_path), model=model, base_url=args.url,
+            )
+            all_results["models"][model] = model_results
+
+            print(f"\n--- {model} 結果 ---")
+            print(f"  術語校正率: {model_results['avg_terminology']:.1f}")
+            print(f"  文字保留度: {model_results['avg_preservation']:.1f}")
+            print(f"  標點 F1:    {model_results['avg_punctuation_f1']:.1f}")
+            print(f"  加權總分:   {model_results['avg_weighted']:.1f}")
+            print(f"  平均速度:   {model_results['avg_tokens_per_sec']:.0f} tok/s")
+        except Exception as e:
+            print(f"Error testing {model}: {e}")
+            print("跳過此模型，繼續下一個...")
+            continue
+
+    if all_results["models"]:
+        json_path = output_dir / f"results_{timestamp}.json"
+        with open(json_path, "w") as f:
+            serializable = json.loads(json.dumps(all_results, default=str))
+            json.dump(serializable, f, ensure_ascii=False, indent=2)
+        print(f"\n原始結果: {json_path}")
+
+        report = generate_report(all_results)
+        report_path = output_dir / f"report_{timestamp}.md"
+        with open(report_path, "w") as f:
+            f.write(report)
+        print(f"比較報告: {report_path}")
+    else:
+        print("沒有測試結果。")
+
+
+if __name__ == "__main__":
+    main()
