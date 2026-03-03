@@ -3,6 +3,7 @@
 
 import re
 import time
+from datetime import datetime
 from difflib import SequenceMatcher
 
 import requests
@@ -148,3 +149,61 @@ def call_llm(
         "elapsed_s": round(elapsed, 3),
         "tokens_per_sec": round(tokens_per_sec, 1),
     }
+
+
+def generate_report(results: dict) -> str:
+    lines = [
+        "# LLM ASR Post-Processing Benchmark",
+        f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "Prompt: v1",
+        "",
+        "## 綜合排名",
+        "| # | 模型 | 術語(40%) | 保留度(30%) | 標點(30%) | 加權總分 | tok/s |",
+        "|---|---|---|---|---|---|---|",
+    ]
+
+    ranked = sorted(
+        results["models"].items(),
+        key=lambda x: x[1]["avg_weighted"],
+        reverse=True,
+    )
+
+    for rank, (model_name, model_data) in enumerate(ranked, 1):
+        lines.append(
+            f"| {rank} | {model_name} "
+            f"| {model_data['avg_terminology']:.1f} "
+            f"| {model_data['avg_preservation']:.1f} "
+            f"| {model_data['avg_punctuation_f1']:.1f} "
+            f"| {model_data['avg_weighted']:.1f} "
+            f"| {model_data['avg_tokens_per_sec']:.0f} |"
+        )
+
+    lines.append("")
+    lines.append("## 各案例明細")
+
+    if ranked:
+        first_model_cases = ranked[0][1]["cases"]
+        for case in first_model_cases:
+            case_id = case["id"]
+            lines.append(f"### {case_id}")
+            lines.append(f"- 輸入: {case['input']}")
+            lines.append(f"- 期望: {case['expected']}")
+
+            for model_name, model_data in ranked:
+                matching = [c for c in model_data["cases"] if c["id"] == case_id]
+                if matching:
+                    c = matching[0]
+                    term_marks = " ".join(
+                        f"{'✓' if ok else '✗'}{term}"
+                        for term, ok in c["terminology_detail"]
+                    )
+                    lines.append(
+                        f"- {model_name}: {c['output']} "
+                        f"[術語:{c['terminology_score']:.0f} "
+                        f"保留:{c['preservation_score']:.0f} "
+                        f"標點:{c['punctuation_f1']:.0f}] "
+                        f"{term_marks}"
+                    )
+            lines.append("")
+
+    return "\n".join(lines)

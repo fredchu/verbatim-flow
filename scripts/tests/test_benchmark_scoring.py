@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm
+from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm, generate_report
 
 class TestTerminologyScoring:
     def test_all_correct(self):
@@ -91,3 +91,36 @@ class TestCallLLM:
             assert payload["messages"][1]["role"] == "user"
             assert payload["messages"][1]["content"] == "測試輸入"
             assert payload["temperature"] == 0
+
+
+class TestReportGeneration:
+    def test_generates_markdown(self):
+        results = {
+            "models": {
+                "qwen3-8b-8bit": {
+                    "cases": [
+                        {
+                            "id": "t01",
+                            "input": "歐拉瑪",
+                            "expected": "Ollama。",
+                            "output": "Ollama。",
+                            "terminology_score": 100.0,
+                            "preservation_score": 100.0,
+                            "punctuation_f1": 100.0,
+                            "weighted_score": 100.0,
+                            "tokens_per_sec": 30.0,
+                            "terminology_detail": [("Ollama", True)],
+                        }
+                    ],
+                    "avg_terminology": 100.0,
+                    "avg_preservation": 100.0,
+                    "avg_punctuation_f1": 100.0,
+                    "avg_weighted": 100.0,
+                    "avg_tokens_per_sec": 30.0,
+                }
+            }
+        }
+        report = generate_report(results)
+        assert "# LLM ASR Post-Processing Benchmark" in report
+        assert "qwen3-8b-8bit" in report
+        assert "100.0" in report
