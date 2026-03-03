@@ -41,11 +41,20 @@ Forced Aligner → ForcedAligner"""
 
 
 def apply_terminology_regex(text: str) -> str:
-    """Apply terminology corrections using string replacement."""
-    result = text
+    """Apply terminology corrections using string replacement.
+
+    Patterns are sorted by length (longest first) so that more specific
+    patterns like 'Super powers' match before shorter ones like 'Super power'.
+    """
+    pairs = []
     for line in TERMINOLOGY_TABLE.strip().split("\n"):
         wrong, correct = line.split("→", 1)
-        result = result.replace(wrong.strip(), correct.strip())
+        pairs.append((wrong.strip(), correct.strip()))
+    pairs.sort(key=lambda p: len(p[0]), reverse=True)
+
+    result = text
+    for wrong, correct in pairs:
+        result = result.replace(wrong, correct)
     return result
 
 
