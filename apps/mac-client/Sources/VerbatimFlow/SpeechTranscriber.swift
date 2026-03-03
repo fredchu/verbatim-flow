@@ -909,6 +909,18 @@ final class SpeechTranscriber {
         if !missingPaths.isEmpty {
             env["PATH"] = (missingPaths + [currentPath]).joined(separator: ":")
         }
+
+        // Inject LLM settings for _add_punctuation() in Python.
+        let llmPrefs = AppPreferences()
+        if let baseURL = llmPrefs.loadLLMBaseURL(), !baseURL.isEmpty {
+            env["VERBATIMFLOW_LLM_BASE_URL"] = baseURL
+        }
+        if let punctModel = llmPrefs.loadPunctuationModel(), !punctModel.isEmpty {
+            env["VERBATIMFLOW_LLM_MODEL"] = punctModel
+        }
+        if let prompt = llmPrefs.loadPunctuationPrompt(), !prompt.isEmpty {
+            env["VERBATIMFLOW_LLM_PROMPT"] = prompt
+        }
         process.environment = env
 
         process.standardOutput = outputPipe
