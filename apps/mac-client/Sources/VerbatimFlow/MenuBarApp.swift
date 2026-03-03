@@ -87,6 +87,19 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     )
     private let qwenModelInfoItem: NSMenuItem = NSMenuItem(title: "Qwen Model: -", action: nil, keyEquivalent: "")
 
+    private let mlxWhisperModelMenuItem = NSMenuItem(title: "MLX Whisper Model", action: nil, keyEquivalent: "")
+    private lazy var mlxWhisperModelWhisperV3Item = NSMenuItem(
+        title: "Whisper Large V3",
+        action: #selector(setMlxWhisperModelWhisperV3),
+        keyEquivalent: ""
+    )
+    private lazy var mlxWhisperModelBreezeItem = NSMenuItem(
+        title: "Breeze ASR 25",
+        action: #selector(setMlxWhisperModelBreeze),
+        keyEquivalent: ""
+    )
+    private let mlxWhisperModelInfoItem: NSMenuItem = NSMenuItem(title: "MLX Whisper Model: -", action: nil, keyEquivalent: "")
+
     private let openAIModelMenuItem = NSMenuItem(title: "OpenAI Model", action: nil, keyEquivalent: "")
     private lazy var openAIModelMiniItem = NSMenuItem(
         title: "gpt-4o-mini-transcribe",
@@ -328,6 +341,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         whisperModelInfoItem.isEnabled = false
         openAIModelInfoItem.isEnabled = false
         qwenModelInfoItem.isEnabled = false
+        mlxWhisperModelInfoItem.isEnabled = false
         hotkeyInfoItem.isEnabled = false
         clarifyHotkeyInfoItem.isEnabled = false
         languageInfoItem.isEnabled = false
@@ -363,6 +377,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         qwenModelSubmenu.addItem(qwenModelSmallItem)
         qwenModelSubmenu.addItem(qwenModelLargeItem)
         qwenModelMenuItem.submenu = qwenModelSubmenu
+
+        mlxWhisperModelWhisperV3Item.target = self
+        mlxWhisperModelBreezeItem.target = self
+        let mlxWhisperModelSubmenu = NSMenu(title: "MLX Whisper Model")
+        mlxWhisperModelSubmenu.addItem(mlxWhisperModelWhisperV3Item)
+        mlxWhisperModelSubmenu.addItem(mlxWhisperModelBreezeItem)
+        mlxWhisperModelMenuItem.submenu = mlxWhisperModelSubmenu
 
         openAIModelMiniItem.target = self
         openAIModelWhisper1Item.target = self
@@ -427,6 +448,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         settingsSubmenu.addItem(whisperModelMenuItem)
         settingsSubmenu.addItem(openAIModelMenuItem)
         settingsSubmenu.addItem(qwenModelMenuItem)
+        settingsSubmenu.addItem(mlxWhisperModelMenuItem)
         settingsSubmenu.addItem(hotkeyMenuItem)
         settingsSubmenu.addItem(languageMenuItem)
         settingsSubmenu.addItem(NSMenuItem.separator())
@@ -434,6 +456,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         settingsSubmenu.addItem(whisperModelInfoItem)
         settingsSubmenu.addItem(openAIModelInfoItem)
         settingsSubmenu.addItem(qwenModelInfoItem)
+        settingsSubmenu.addItem(mlxWhisperModelInfoItem)
         settingsSubmenu.addItem(hotkeyInfoItem)
         settingsSubmenu.addItem(clarifyHotkeyInfoItem)
         settingsSubmenu.addItem(languageInfoItem)
@@ -600,11 +623,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         let currentWhisperModel = controller.currentWhisperModel
         let currentOpenAIModel = controller.currentOpenAIModel
         let currentQwenModel = controller.currentQwenModel
+        let currentMlxWhisperModel = controller.currentMlxWhisperModel
 
         engineInfoItem.title = "Engine: \(currentEngine.displayName)"
         whisperModelInfoItem.title = "Whisper Model: \(currentWhisperModel.displayName)"
         openAIModelInfoItem.title = "OpenAI Model: \(currentOpenAIModel.displayName)"
         qwenModelInfoItem.title = "Qwen Model: \(currentQwenModel.displayName)"
+        mlxWhisperModelInfoItem.title = "MLX Whisper Model: \(currentMlxWhisperModel.displayName)"
 
         engineAppleItem.state = currentEngine == .apple ? .on : .off
         engineWhisperItem.state = currentEngine == .whisper ? .on : .off
@@ -621,13 +646,17 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         openAIModelWhisper1Item.state = currentOpenAIModel == .whisper1 ? .on : .off
         qwenModelSmallItem.state = currentQwenModel == .small ? .on : .off
         qwenModelLargeItem.state = currentQwenModel == .large ? .on : .off
+        mlxWhisperModelWhisperV3Item.state = currentMlxWhisperModel == .whisperLargeV3 ? .on : .off
+        mlxWhisperModelBreezeItem.state = currentMlxWhisperModel == .breezeASR25 ? .on : .off
 
         whisperModelMenuItem.isEnabled = currentEngine == .whisper
         openAIModelMenuItem.isEnabled = currentEngine == .openai
         qwenModelMenuItem.isEnabled = currentEngine == .qwen
+        mlxWhisperModelMenuItem.isEnabled = currentEngine == .mlxWhisper
         whisperModelInfoItem.isHidden = currentEngine != .whisper
         openAIModelInfoItem.isHidden = currentEngine != .openai
         qwenModelInfoItem.isHidden = currentEngine != .qwen
+        mlxWhisperModelInfoItem.isHidden = currentEngine != .mlxWhisper
     }
 
     private func refreshHotkeyChecks() {
@@ -833,6 +862,22 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func setQwenModel(_ model: QwenModel) {
         controller.setQwenModel(model)
         preferences.saveQwenModel(controller.currentQwenModel)
+        refreshEngineChecks()
+    }
+
+    @objc
+    private func setMlxWhisperModelWhisperV3() {
+        setMlxWhisperModel(.whisperLargeV3)
+    }
+
+    @objc
+    private func setMlxWhisperModelBreeze() {
+        setMlxWhisperModel(.breezeASR25)
+    }
+
+    private func setMlxWhisperModel(_ model: MlxWhisperModel) {
+        controller.setMlxWhisperModel(model)
+        preferences.saveMlxWhisperModel(controller.currentMlxWhisperModel)
         refreshEngineChecks()
     }
 
