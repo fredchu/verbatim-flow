@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm, generate_report
+from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm, generate_report, PROMPTS, DEFAULT_PROMPT
 
 class TestTerminologyScoring:
     def test_all_correct(self):
@@ -88,9 +88,41 @@ class TestCallLLM:
             payload = call_args[1]["json"]
             assert payload["model"] == "qwen3-8b"
             assert payload["messages"][0]["role"] == "system"
+            assert payload["messages"][0]["content"] == PROMPTS[DEFAULT_PROMPT]
             assert payload["messages"][1]["role"] == "user"
             assert payload["messages"][1]["content"] == "測試輸入"
             assert payload["temperature"] == 0
+
+    def test_prompt_key_selection(self):
+        """Verify different prompt keys use different system prompts."""
+        import unittest.mock as mock
+
+        fake_response = mock.MagicMock()
+        fake_response.json.return_value = {
+            "choices": [{"message": {"content": "結果"}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        }
+        fake_response.raise_for_status = mock.MagicMock()
+
+        with mock.patch("benchmark_llm.requests.post", return_value=fake_response) as mock_post:
+            call_llm("輸入", model="test", prompt_key="v2-fewshot")
+            payload = mock_post.call_args[1]["json"]
+            assert payload["messages"][0]["content"] == PROMPTS["v2-fewshot"]
+
+    def test_v4_json_extraction(self):
+        """Verify v4-json prompt extracts output from JSON response."""
+        import unittest.mock as mock
+
+        fake_response = mock.MagicMock()
+        fake_response.json.return_value = {
+            "choices": [{"message": {"content": '{"output": "校正後文字。"}'}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        }
+        fake_response.raise_for_status = mock.MagicMock()
+
+        with mock.patch("benchmark_llm.requests.post", return_value=fake_response):
+            result = call_llm("輸入", model="test", prompt_key="v4-json")
+            assert result["content"] == "校正後文字。"
 
 
 class TestReportGeneration:

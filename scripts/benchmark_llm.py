@@ -13,14 +13,83 @@ import requests
 
 PUNCTUATION_CHARS = set("，。！？；：、「」『』《》")
 
-SYSTEM_PROMPT = """你是標點與術語校正器。
+TERMINOLOGY_TABLE = """歐拉瑪 → Ollama
+Comet → Commit
+walk flow → workflow
+work flow → workflow
+偷坑 → token
+B肉 → BROLL
+逼肉 → BROLL
+Cloud Code → Claude Code
+Super power → Superpowers
+Super powers → Superpowers
+Brise ASR → Breeze ASR
+Bruce ASR → Breeze ASR
+Brice ASR → Breeze ASR
+Quint 3 → Qwen3
+Quant 3 → Qwen3
+Quant 38B → Qwen3 8B
+集聚 → 級距
+LIM Studio → LM Studio
+Emerald X → MLX
+M2X → MLX
+Git Hub → GitHub
+Open AI → OpenAI
+Chat GPT → ChatGPT
+Open CC → OpenCC
+Forced Aligner → ForcedAligner"""
+
+PROMPTS = {
+    "v1": """你是標點與術語校正器。
 規則：
 - 只加標點符號（，。！？；：「」），不修改任何文字內容。
 - 唯一例外：套用以下術語替換表，將語音誤識別的詞彙修正為正確寫法。
 - 不刪字、不加字、不改寫、不潤飾、不合併語句。
 - 使用全形標點符號。
 - 術語替換：歐拉瑪 → Ollama｜Comet → Commit｜walk flow → workflow｜work flow → workflow｜偷坑 → token｜B肉 → BROLL｜逼肉 → BROLL｜Cloud Code → Claude Code｜Super power → Superpowers｜Super powers → Superpowers｜Brise ASR → Breeze ASR｜Bruce ASR → Breeze ASR｜Brice ASR → Breeze ASR｜Quint 3 → Qwen3｜Quant 3 → Qwen3｜Quant 38B → Qwen3 8B｜集聚 → 級距｜LIM Studio → LM Studio｜Emerald X → MLX｜M2X → MLX
-- 僅輸出結果，不要解釋。 /no_think"""
+- 僅輸出結果，不要解釋。 /no_think""",
+
+    "v2-fewshot": f"""你必須對語音辨識文字做兩件事：
+1. 將錯誤術語替換為正確寫法
+2. 加入中文全形標點符號
+
+術語替換表：
+{TERMINOLOGY_TABLE}
+
+範例：
+輸入：我要用Cloud Code來寫一個work flow自動化Comet和Release的流程
+輸出：我要用 Claude Code 來寫一個 workflow，自動化 Commit 和 Release 的流程。
+
+輸入：把逼肉的片段剪出來然後用Open CC轉成繁體
+輸出：把 BROLL 的片段剪出來，然後用 OpenCC 轉成繁體。
+
+輸入：用Brise ASR跑Forced Aligner然後匯出SRT字幕檔
+輸出：用 Breeze ASR 跑 ForcedAligner，然後匯出 SRT 字幕檔。
+
+只輸出校正結果，不要解釋。 /no_think""",
+
+    "v3-positive": f"""對以下語音轉錄文字執行兩個操作：
+
+操作一：找到並替換這些錯誤術語：
+{TERMINOLOGY_TABLE}
+
+操作二：在適當位置加入中文全形標點符號（，。！？；：）。
+
+除了上述兩個操作，不要修改任何其他文字。直接輸出結果。 /no_think""",
+
+    "v4-json": f"""你是語音辨識後處理器。對輸入文字執行術語校正和標點符號插入。
+
+術語替換表：
+{TERMINOLOGY_TABLE}
+
+以 JSON 格式回覆，只包含一個 "output" 欄位：
+{{"output": "校正後的文字"}}
+
+不要輸出任何其他內容。 /no_think""",
+}
+
+# Default prompt key
+DEFAULT_PROMPT = "v1"
 
 
 def _strip_punctuation(text: str) -> str:
@@ -121,11 +190,13 @@ def call_llm(
     input_text: str,
     model: str,
     base_url: str = LM_STUDIO_DEFAULT_URL,
+    prompt_key: str = DEFAULT_PROMPT,
 ) -> dict:
+    system_prompt = PROMPTS[prompt_key]
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": input_text},
         ],
         "temperature": 0,
@@ -149,6 +220,16 @@ def call_llm(
     content = data["choices"][0]["message"]["content"].strip()
     # Strip <think>...</think> blocks from models that ignore /no_think
     content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+    # Extract JSON output field for v4-json prompt
+    if prompt_key == "v4-json":
+        try:
+            parsed = json.loads(content)
+            content = parsed.get("output", content)
+        except (json.JSONDecodeError, TypeError):
+            # Try to extract from partial JSON
+            m = re.search(r'"output"\s*:\s*"([^"]*)"', content)
+            if m:
+                content = m.group(1)
 
     return {
         "content": content,
@@ -158,11 +239,11 @@ def call_llm(
     }
 
 
-def generate_report(results: dict) -> str:
+def generate_report(results: dict, prompt_key: str = DEFAULT_PROMPT) -> str:
     lines = [
         "# LLM ASR Post-Processing Benchmark",
         f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        "Prompt: v1",
+        f"Prompt: {prompt_key}",
         "",
         "## 綜合排名",
         "| # | 模型 | 術語(40%) | 保留度(30%) | 標點(30%) | 加權總分 | tok/s |",
@@ -220,6 +301,7 @@ def run_benchmark(
     testcases_path: str,
     model: str,
     base_url: str = LM_STUDIO_DEFAULT_URL,
+    prompt_key: str = DEFAULT_PROMPT,
 ) -> dict:
     with open(testcases_path) as f:
         testcases = json.load(f)
@@ -227,7 +309,7 @@ def run_benchmark(
     cases = []
     for tc in testcases:
         print(f"  [{tc['id']}] {tc['input'][:40]}...")
-        result = call_llm(tc["input"], model=model, base_url=base_url)
+        result = call_llm(tc["input"], model=model, base_url=base_url, prompt_key=prompt_key)
 
         term_score = score_terminology(result["content"], tc["terminology_corrections"])
         pres_score = score_preservation(tc["input"], result["content"], tc.get("terminology_pairs", []))
@@ -278,12 +360,19 @@ def main():
         help="Model IDs to test (default: all in DEFAULT_MODELS)",
     )
     parser.add_argument(
+        "--prompt", nargs="+",
+        choices=list(PROMPTS.keys()) + ["all"],
+        default=[DEFAULT_PROMPT],
+        help=f"Prompt variants to test (default: {DEFAULT_PROMPT})",
+    )
+    parser.add_argument(
         "--url", default=LM_STUDIO_DEFAULT_URL,
         help=f"LM Studio API URL (default: {LM_STUDIO_DEFAULT_URL})",
     )
     args = parser.parse_args()
 
     models = args.models or DEFAULT_MODELS
+    prompts = list(PROMPTS.keys()) if "all" in args.prompt else args.prompt
 
     testcases_path = Path(__file__).parent / "benchmark_testcases.json"
     output_dir = Path(__file__).parent / "benchmark_results"
@@ -293,54 +382,66 @@ def main():
         print(f"Error: {testcases_path} not found")
         return
 
-    all_results = {"models": {}}
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    total_combos = len(prompts) * len(models)
 
     print("=" * 60)
     print("LLM ASR Post-Processing Benchmark")
     print("=" * 60)
     print(f"Test cases: {testcases_path}")
     print(f"LM Studio API: {args.url}")
-    print(f"Models to test: {len(models)}")
+    print(f"Prompts: {', '.join(prompts)}")
+    print(f"Models: {len(models)}")
     for m in models:
         print(f"  - {m}")
+    print(f"Total combinations: {total_combos}")
     print()
 
-    for i, model in enumerate(models, 1):
-        print(f"\n{'='*60}")
-        print(f"[{i}/{len(models)}] 測試模型: {model}")
-        print(f"{'='*60}")
-        try:
-            model_results = run_benchmark(
-                str(testcases_path), model=model, base_url=args.url,
-            )
-            all_results["models"][model] = model_results
+    combo_idx = 0
+    for prompt_key in prompts:
+        all_results = {"models": {}}
 
-            print(f"\n--- {model} 結果 ---")
-            print(f"  術語校正率: {model_results['avg_terminology']:.1f}")
-            print(f"  文字保留度: {model_results['avg_preservation']:.1f}")
-            print(f"  標點 F1:    {model_results['avg_punctuation_f1']:.1f}")
-            print(f"  加權總分:   {model_results['avg_weighted']:.1f}")
-            print(f"  平均速度:   {model_results['avg_tokens_per_sec']:.0f} tok/s")
-        except Exception as e:
-            print(f"Error testing {model}: {e}")
-            print("跳過此模型，繼續下一個...")
-            continue
+        print(f"\n{'#'*60}")
+        print(f"# Prompt: {prompt_key}")
+        print(f"{'#'*60}")
 
-    if all_results["models"]:
-        json_path = output_dir / f"results_{timestamp}.json"
-        with open(json_path, "w") as f:
-            serializable = json.loads(json.dumps(all_results, default=str))
-            json.dump(serializable, f, ensure_ascii=False, indent=2)
-        print(f"\n原始結果: {json_path}")
+        for model in models:
+            combo_idx += 1
+            print(f"\n{'='*60}")
+            print(f"[{combo_idx}/{total_combos}] {prompt_key} × {model}")
+            print(f"{'='*60}")
+            try:
+                model_results = run_benchmark(
+                    str(testcases_path), model=model,
+                    base_url=args.url, prompt_key=prompt_key,
+                )
+                all_results["models"][model] = model_results
 
-        report = generate_report(all_results)
-        report_path = output_dir / f"report_{timestamp}.md"
-        with open(report_path, "w") as f:
-            f.write(report)
-        print(f"比較報告: {report_path}")
-    else:
-        print("沒有測試結果。")
+                print(f"\n--- {model} 結果 ---")
+                print(f"  術語校正率: {model_results['avg_terminology']:.1f}")
+                print(f"  文字保留度: {model_results['avg_preservation']:.1f}")
+                print(f"  標點 F1:    {model_results['avg_punctuation_f1']:.1f}")
+                print(f"  加權總分:   {model_results['avg_weighted']:.1f}")
+                print(f"  平均速度:   {model_results['avg_tokens_per_sec']:.0f} tok/s")
+            except Exception as e:
+                print(f"Error testing {model}: {e}")
+                print("跳過此模型，繼續下一個...")
+                continue
+
+        if all_results["models"]:
+            json_path = output_dir / f"results_{prompt_key}_{timestamp}.json"
+            with open(json_path, "w") as f:
+                serializable = json.loads(json.dumps(all_results, default=str))
+                json.dump(serializable, f, ensure_ascii=False, indent=2)
+            print(f"\n原始結果: {json_path}")
+
+            report = generate_report(all_results, prompt_key=prompt_key)
+            report_path = output_dir / f"report_{prompt_key}_{timestamp}.md"
+            with open(report_path, "w") as f:
+                f.write(report)
+            print(f"比較報告: {report_path}")
+        else:
+            print(f"Prompt {prompt_key}: 沒有測試結果。")
 
 
 if __name__ == "__main__":
