@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm, generate_report, PROMPTS, DEFAULT_PROMPT, apply_terminology_regex
+from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm, generate_report, PROMPTS, DEFAULT_PROMPT, apply_terminology_regex, run_two_layer_benchmark
 
 class TestTerminologyScoring:
     def test_all_correct(self):
@@ -179,3 +179,56 @@ class TestTerminologyRegex:
         assert "級距" in apply_terminology_regex("集聚")
         assert "MLX" in apply_terminology_regex("Emerald X")
         assert "MLX" in apply_terminology_regex("M2X")
+
+
+import json
+
+class TestTwoLayerBenchmark:
+    def test_bert_only_mode(self):
+        """Verify bert-only mode calls PunctuationModel and scores output."""
+        import unittest.mock as mock
+
+        mock_punc = mock.MagicMock()
+        mock_punc.add_punctuation_timed.return_value = ("今天天氣很好，我們去散步。", 0.01)
+
+        testcases = [{
+            "id": "t99",
+            "input": "今天天氣很好我們去散步",
+            "expected": "今天天氣很好，我們去散步。",
+            "terminology_corrections": [],
+            "terminology_pairs": [],
+            "type": "short",
+        }]
+
+        with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(testcases))):
+            result = run_two_layer_benchmark(
+                "fake_path.json", mode="bert-only", punc_model=mock_punc,
+            )
+
+        assert result["avg_punctuation_f1"] > 0
+        assert len(result["cases"]) == 1
+        mock_punc.add_punctuation_timed.assert_called_once()
+
+    def test_bert_regex_mode(self):
+        """Verify bert+regex applies both punctuation and terminology."""
+        import unittest.mock as mock
+
+        mock_punc = mock.MagicMock()
+        mock_punc.add_punctuation_timed.return_value = ("使用歐拉瑪來跑模型。", 0.01)
+
+        testcases = [{
+            "id": "t99",
+            "input": "使用歐拉瑪來跑模型",
+            "expected": "使用 Ollama 來跑模型。",
+            "terminology_corrections": ["Ollama"],
+            "terminology_pairs": ["歐拉瑪→Ollama"],
+            "type": "short",
+        }]
+
+        with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(testcases))):
+            result = run_two_layer_benchmark(
+                "fake_path.json", mode="bert+regex", punc_model=mock_punc,
+            )
+
+        assert result["avg_terminology"] == 100.0
+        assert result["cases"][0]["output"] == "使用Ollama來跑模型。"

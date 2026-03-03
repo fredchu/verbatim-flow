@@ -96,6 +96,14 @@ PROMPTS = {
 {{"output": "校正後的文字"}}
 
 不要輸出任何其他內容。 /no_think""",
+
+    "v5-term-only": f"""你是術語校正器。
+規則：
+- 只替換以下術語表中的錯誤詞彙，不修改任何其他文字。
+- 不加字、不刪字、不改標點符號、不改寫句子。
+- 術語替換表：
+{TERMINOLOGY_TABLE}
+- 僅輸出結果，不要解釋。 /no_think""",
 }
 
 # Default prompt key
@@ -360,6 +368,83 @@ def run_benchmark(
         "avg_punctuation_f1": avg("punctuation_f1"),
         "avg_weighted": avg("weighted_score"),
         "avg_tokens_per_sec": avg("tokens_per_sec"),
+    }
+
+
+def run_two_layer_benchmark(
+    testcases_path: str,
+    mode: str,
+    punc_model=None,
+    model: str = "",
+    base_url: str = LM_STUDIO_DEFAULT_URL,
+) -> dict:
+    """Run benchmark with two-layer pipeline (BERT punctuation + terminology)."""
+    with open(testcases_path) as f:
+        testcases = json.load(f)
+
+    cases = []
+    for tc in testcases:
+        print(f"  [{tc['id']}] {tc['input'][:40]}...")
+
+        # Layer 1: BERT punctuation + OpenCC
+        punctuated, elapsed = punc_model.add_punctuation_timed(tc["input"])
+
+        # Layer 2: terminology correction
+        if mode == "bert-only":
+            output = punctuated
+        elif mode == "bert+regex":
+            output = apply_terminology_regex(punctuated)
+        elif mode == "bert+llm":
+            llm_result = call_llm(
+                punctuated, model=model, base_url=base_url,
+                prompt_key="v5-term-only",
+            )
+            output = llm_result["content"]
+            elapsed += llm_result["elapsed_s"]
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
+
+        term_score = score_terminology(output, tc["terminology_corrections"])
+        pres_score = score_preservation(
+            tc["input"], output, tc.get("terminology_pairs", []),
+        )
+        prec, rec, f1 = score_punctuation(tc["expected"], output)
+        weighted = term_score * 0.4 + pres_score * 0.3 + f1 * 0.3
+
+        term_detail = [
+            (term, term in output)
+            for term in tc["terminology_corrections"]
+        ]
+
+        cases.append({
+            "id": tc["id"],
+            "type": tc["type"],
+            "input": tc["input"],
+            "expected": tc["expected"],
+            "output": output,
+            "terminology_score": term_score,
+            "preservation_score": pres_score,
+            "punctuation_precision": prec,
+            "punctuation_recall": rec,
+            "punctuation_f1": f1,
+            "weighted_score": round(weighted, 2),
+            "tokens_per_sec": 0,
+            "elapsed_s": elapsed,
+            "terminology_detail": term_detail,
+        })
+
+        status = "✓" if term_score == 100 else f"術語:{term_score:.0f}"
+        print(f"         → {status} | 保留:{pres_score:.0f} | 標點F1:{f1:.0f} | {elapsed:.3f}s")
+
+    avg = lambda key: round(sum(c[key] for c in cases) / len(cases), 2)
+
+    return {
+        "cases": cases,
+        "avg_terminology": avg("terminology_score"),
+        "avg_preservation": avg("preservation_score"),
+        "avg_punctuation_f1": avg("punctuation_f1"),
+        "avg_weighted": avg("weighted_score"),
+        "avg_tokens_per_sec": 0,
     }
 
 
