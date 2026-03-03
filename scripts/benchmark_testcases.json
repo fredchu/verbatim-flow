@@ -1,0 +1,142 @@
+[
+  {
+    "id": "t01",
+    "input": "目前使用歐拉瑪的Quant 38B進行校正跟幫Brice ASR加標點符號我想要換成用LIM Studio搭配Quant 38B M2X的模型評估可行性",
+    "expected": "目前使用 Ollama 的 Qwen3 8B 進行校正，跟幫 Breeze ASR 加標點符號。我想要換成用 LM Studio 搭配 Qwen3 8B MLX 的模型，評估可行性。",
+    "terminology_corrections": ["Ollama", "Qwen3 8B", "Breeze ASR", "LM Studio", "MLX"],
+    "type": "short"
+  },
+  {
+    "id": "t02",
+    "input": "目前使用歐拉瑪的Quant 38B進行校正搭配Bruce ASR加標點符號欲轉用LIM Studio搭配Quant 38B Emerald X組合可行性欲以Super powers的技能組合整合至Git Hub先不動手",
+    "expected": "目前使用 Ollama 的 Qwen3 8B 進行校正，搭配 Breeze ASR 加標點符號。欲轉用 LM Studio 搭配 Qwen3 8B MLX 組合，可行性欲以 Superpowers 的技能組合整合至 GitHub，先不動手。",
+    "terminology_corrections": ["Ollama", "Qwen3 8B", "Breeze ASR", "LM Studio", "MLX", "Superpowers", "GitHub"],
+    "type": "short"
+  },
+  {
+    "id": "t03",
+    "input": "我要用Cloud Code來寫一個work flow自動化Comet和Release的流程",
+    "expected": "我要用 Claude Code 來寫一個 workflow，自動化 Commit 和 Release 的流程。",
+    "terminology_corrections": ["Claude Code", "workflow", "Commit"],
+    "type": "short"
+  },
+  {
+    "id": "t04",
+    "input": "這個偷坑的集聚設定有問題需要調整一下",
+    "expected": "這個 token 的級距設定有問題，需要調整一下。",
+    "terminology_corrections": ["token", "級距"],
+    "type": "short"
+  },
+  {
+    "id": "t05",
+    "input": "我在Git Hub上面開了一個新的Codex專案用的是Open AI的GPT模型",
+    "expected": "我在 GitHub 上面開了一個新的 Codex 專案，用的是 OpenAI 的 GPT 模型。",
+    "terminology_corrections": ["GitHub", "Codex", "OpenAI", "GPT"],
+    "type": "short"
+  },
+  {
+    "id": "t06",
+    "input": "把B肉的片段剪出來然後用SRT格式匯出字幕檔",
+    "expected": "把 BROLL 的片段剪出來，然後用 SRT 格式匯出字幕檔。",
+    "terminology_corrections": ["BROLL", "SRT"],
+    "type": "short"
+  },
+  {
+    "id": "t07",
+    "input": "用Gemini CLI跑一下測試然後跟Chat GPT的結果比較看看",
+    "expected": "用 Gemini CLI 跑一下測試，然後跟 ChatGPT 的結果比較看看。",
+    "terminology_corrections": ["Gemini CLI", "ChatGPT"],
+    "type": "short"
+  },
+  {
+    "id": "t08",
+    "input": "Brise ASR的Forced Aligner功能可以自動對齊字幕時間軸",
+    "expected": "Breeze ASR 的 ForcedAligner 功能可以自動對齊字幕時間軸。",
+    "terminology_corrections": ["Breeze ASR", "ForcedAligner"],
+    "type": "short"
+  },
+  {
+    "id": "t09",
+    "input": "用Open CC把簡體轉成繁體然後再跑一次Quint 3 ASR看看結果有沒有改善",
+    "expected": "用 OpenCC 把簡體轉成繁體，然後再跑一次 Qwen3 ASR 看看結果有沒有改善。",
+    "terminology_corrections": ["OpenCC", "Qwen3 ASR"],
+    "type": "short"
+  },
+  {
+    "id": "t10",
+    "input": "Anthropic剛發布了新的模型我們來測試一下跟Google的Gemini比較",
+    "expected": "Anthropic 剛發布了新的模型，我們來測試一下，跟 Google 的 Gemini 比較。",
+    "terminology_corrections": ["Anthropic", "Google", "Gemini"],
+    "type": "short"
+  },
+  {
+    "id": "t11",
+    "input": "這個Super power的walk flow需要先Comet到main branch然後再做Release",
+    "expected": "這個 Superpowers 的 workflow 需要先 Commit 到 main branch，然後再做 Release。",
+    "terminology_corrections": ["Superpowers", "workflow", "Commit", "Release"],
+    "type": "short"
+  },
+  {
+    "id": "t12",
+    "input": "逼肉的部分我已經剪好了接下來要處理主要的訪談內容",
+    "expected": "BROLL 的部分我已經剪好了，接下來要處理主要的訪談內容。",
+    "terminology_corrections": ["BROLL"],
+    "type": "short"
+  },
+  {
+    "id": "t13",
+    "input": "今天要來錄一集關於AI工具的影片主要會介紹Cloud Code跟Gemini CLI這兩個工具",
+    "expected": "今天要來錄一集關於 AI 工具的影片，主要會介紹 Claude Code 跟 Gemini CLI 這兩個工具。",
+    "terminology_corrections": ["Claude Code", "Gemini CLI"],
+    "type": "short"
+  },
+  {
+    "id": "t14",
+    "input": "每個偷坑的集聚不一樣所以價格計算方式也不同",
+    "expected": "每個 token 的級距不一樣，所以價格計算方式也不同。",
+    "terminology_corrections": ["token", "級距"],
+    "type": "short"
+  },
+  {
+    "id": "t15",
+    "input": "先把Git上面的分支整理一下然後再開一個新的branch來做這個功能",
+    "expected": "先把 Git 上面的分支整理一下，然後再開一個新的 branch 來做這個功能。",
+    "terminology_corrections": ["Git"],
+    "type": "short"
+  },
+  {
+    "id": "t16",
+    "input": "今天我們要來介紹一下怎麼用歐拉瑪在本地端跑大型語言模型首先你需要安裝歐拉瑪這個軟體然後下載你想要用的模型比如說Quint 3或者是Gemini接著你就可以透過API來呼叫這些模型了整個過程其實非常簡單大概五分鐘就可以搞定",
+    "expected": "今天我們要來介紹一下怎麼用 Ollama 在本地端跑大型語言模型。首先你需要安裝 Ollama 這個軟體，然後下載你想要用的模型，比如說 Qwen3 或者是 Gemini。接著你就可以透過 API 來呼叫這些模型了。整個過程其實非常簡單，大概五分鐘就可以搞定。",
+    "terminology_corrections": ["Ollama", "Qwen3", "Gemini"],
+    "type": "long"
+  },
+  {
+    "id": "t17",
+    "input": "這個專案目前用的是Brise ASR做語音辨識然後透過Cloud Code來做自動化的work flow包含了自動Comet到Git Hub上面還有自動產生Release notes另外我們也有用Open CC來做簡繁轉換確保所有的字幕都是繁體中文的",
+    "expected": "這個專案目前用的是 Breeze ASR 做語音辨識，然後透過 Claude Code 來做自動化的 workflow。包含了自動 Commit 到 GitHub 上面，還有自動產生 Release notes。另外我們也有用 OpenCC 來做簡繁轉換，確保所有的字幕都是繁體中文的。",
+    "terminology_corrections": ["Breeze ASR", "Claude Code", "workflow", "Commit", "GitHub", "Release", "OpenCC"],
+    "type": "long"
+  },
+  {
+    "id": "t18",
+    "input": "接下來我要示範怎麼用Super powers的技能組合來建立一個完整的開發流程從brainstorming開始然後寫設計文件接著用TDD的方式來寫程式碼最後再做code review確保品質這整個walk flow都可以透過Cloud Code來自動化",
+    "expected": "接下來我要示範怎麼用 Superpowers 的技能組合來建立一個完整的開發流程。從 brainstorming 開始，然後寫設計文件，接著用 TDD 的方式來寫程式碼，最後再做 code review 確保品質。這整個 workflow 都可以透過 Claude Code 來自動化。",
+    "terminology_corrections": ["Superpowers", "workflow", "Claude Code"],
+    "type": "long"
+  },
+  {
+    "id": "t19",
+    "input": "我們來看一下影片製作的流程首先是拍攝逼肉跟主要內容然後用Forced Aligner來自動對齊字幕接著匯出SRT格式的字幕檔最後用Open CC把簡體部分轉成繁體整個過程大概需要十分鐘左右",
+    "expected": "我們來看一下影片製作的流程。首先是拍攝 BROLL 跟主要內容，然後用 ForcedAligner 來自動對齊字幕，接著匯出 SRT 格式的字幕檔。最後用 OpenCC 把簡體部分轉成繁體。整個過程大概需要十分鐘左右。",
+    "terminology_corrections": ["BROLL", "ForcedAligner", "SRT", "OpenCC"],
+    "type": "long"
+  },
+  {
+    "id": "t20",
+    "input": "現在來比較一下不同的AI工具Open AI的Chat GPT跟Anthropic的Cloud Code還有Google的Gemini CLI各有各的優缺點Chat GPT適合一般對話Cloud Code適合寫程式Gemini CLI適合跟Google的服務整合大家可以根據自己的需求來選擇",
+    "expected": "現在來比較一下不同的 AI 工具。OpenAI 的 ChatGPT 跟 Anthropic 的 Claude Code，還有 Google 的 Gemini CLI，各有各的優缺點。ChatGPT 適合一般對話，Claude Code 適合寫程式，Gemini CLI 適合跟 Google 的服務整合。大家可以根據自己的需求來選擇。",
+    "terminology_corrections": ["OpenAI", "ChatGPT", "Anthropic", "Claude Code", "Google", "Gemini CLI"],
+    "type": "long"
+  }
+]
