@@ -448,17 +448,26 @@ def run_two_layer_benchmark(
     }
 
 
+MODES = ["llm-only", "bert-only", "bert+regex", "bert+llm"]
+
+
 def main():
     parser = argparse.ArgumentParser(description="LLM ASR Post-Processing Benchmark")
     parser.add_argument(
+        "--mode", nargs="+",
+        choices=MODES + ["all"],
+        default=["llm-only"],
+        help="Pipeline modes to test (default: llm-only)",
+    )
+    parser.add_argument(
         "--models", nargs="+",
-        help="Model IDs to test (default: all in DEFAULT_MODELS)",
+        help="Model IDs to test for LLM modes (default: all in DEFAULT_MODELS)",
     )
     parser.add_argument(
         "--prompt", nargs="+",
         choices=list(PROMPTS.keys()) + ["all"],
         default=[DEFAULT_PROMPT],
-        help=f"Prompt variants to test (default: {DEFAULT_PROMPT})",
+        help=f"Prompt variants for llm-only mode (default: {DEFAULT_PROMPT})",
     )
     parser.add_argument(
         "--url", default=LM_STUDIO_DEFAULT_URL,
@@ -468,6 +477,7 @@ def main():
 
     models = args.models or DEFAULT_MODELS
     prompts = list(PROMPTS.keys()) if "all" in args.prompt else args.prompt
+    modes = MODES if "all" in args.mode else args.mode
 
     testcases_path = Path(__file__).parent / "benchmark_testcases.json"
     output_dir = Path(__file__).parent / "benchmark_results"
@@ -478,65 +488,100 @@ def main():
         return
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    total_combos = len(prompts) * len(models)
 
     print("=" * 60)
     print("LLM ASR Post-Processing Benchmark")
     print("=" * 60)
     print(f"Test cases: {testcases_path}")
-    print(f"LM Studio API: {args.url}")
-    print(f"Prompts: {', '.join(prompts)}")
-    print(f"Models: {len(models)}")
-    for m in models:
-        print(f"  - {m}")
-    print(f"Total combinations: {total_combos}")
+    print(f"Modes: {', '.join(modes)}")
     print()
 
-    combo_idx = 0
-    for prompt_key in prompts:
-        all_results = {"models": {}}
+    # Initialize BERT model if any BERT mode is selected
+    punc_model = None
+    bert_modes = [m for m in modes if m.startswith("bert")]
+    if bert_modes:
+        print("Loading FunASR CT-Transformer punctuation model...")
+        from benchmark_punctuation import PunctuationModel
+        punc_model = PunctuationModel()
+        print("Punctuation model loaded.\n")
 
+    for mode in modes:
         print(f"\n{'#'*60}")
-        print(f"# Prompt: {prompt_key}")
+        print(f"# Mode: {mode}")
         print(f"{'#'*60}")
 
-        for model in models:
-            combo_idx += 1
-            print(f"\n{'='*60}")
-            print(f"[{combo_idx}/{total_combos}] {prompt_key} × {model}")
-            print(f"{'='*60}")
-            try:
-                model_results = run_benchmark(
-                    str(testcases_path), model=model,
-                    base_url=args.url, prompt_key=prompt_key,
+        if mode == "llm-only":
+            for prompt_key in prompts:
+                all_results = {"models": {}}
+                for model in models:
+                    print(f"\n[llm-only] {prompt_key} × {model}")
+                    print("=" * 60)
+                    try:
+                        model_results = run_benchmark(
+                            str(testcases_path), model=model,
+                            base_url=args.url, prompt_key=prompt_key,
+                        )
+                        all_results["models"][model] = model_results
+                        print(f"  加權總分: {model_results['avg_weighted']:.1f}")
+                    except Exception as e:
+                        print(f"Error: {e}")
+                        continue
+
+                if all_results["models"]:
+                    _save_results(
+                        all_results, output_dir,
+                        f"llm-only_{prompt_key}", timestamp, prompt_key,
+                    )
+
+        elif mode in ("bert-only", "bert+regex"):
+            print(f"\n[{mode}] Running...")
+            print("=" * 60)
+            result = run_two_layer_benchmark(
+                str(testcases_path), mode=mode, punc_model=punc_model,
+            )
+            all_results = {"models": {mode: result}}
+            print(f"  加權總分: {result['avg_weighted']:.1f}")
+            _save_results(all_results, output_dir, mode, timestamp, mode)
+
+        elif mode == "bert+llm":
+            all_results = {"models": {}}
+            for model in models:
+                print(f"\n[bert+llm] {model}")
+                print("=" * 60)
+                try:
+                    result = run_two_layer_benchmark(
+                        str(testcases_path), mode="bert+llm",
+                        punc_model=punc_model, model=model,
+                        base_url=args.url,
+                    )
+                    all_results["models"][model] = result
+                    print(f"  加權總分: {result['avg_weighted']:.1f}")
+                except Exception as e:
+                    print(f"Error: {e}")
+                    continue
+
+            if all_results["models"]:
+                _save_results(
+                    all_results, output_dir, "bert+llm", timestamp, "v5-term-only",
                 )
-                all_results["models"][model] = model_results
 
-                print(f"\n--- {model} 結果 ---")
-                print(f"  術語校正率: {model_results['avg_terminology']:.1f}")
-                print(f"  文字保留度: {model_results['avg_preservation']:.1f}")
-                print(f"  標點 F1:    {model_results['avg_punctuation_f1']:.1f}")
-                print(f"  加權總分:   {model_results['avg_weighted']:.1f}")
-                print(f"  平均速度:   {model_results['avg_tokens_per_sec']:.0f} tok/s")
-            except Exception as e:
-                print(f"Error testing {model}: {e}")
-                print("跳過此模型，繼續下一個...")
-                continue
 
-        if all_results["models"]:
-            json_path = output_dir / f"results_{prompt_key}_{timestamp}.json"
-            with open(json_path, "w") as f:
-                serializable = json.loads(json.dumps(all_results, default=str))
-                json.dump(serializable, f, ensure_ascii=False, indent=2)
-            print(f"\n原始結果: {json_path}")
+def _save_results(
+    all_results: dict, output_dir: Path,
+    label: str, timestamp: str, prompt_key: str,
+):
+    """Save JSON results and Markdown report."""
+    json_path = output_dir / f"results_{label}_{timestamp}.json"
+    with open(json_path, "w") as f:
+        serializable = json.loads(json.dumps(all_results, default=str))
+        json.dump(serializable, f, ensure_ascii=False, indent=2)
+    print(f"\n原始結果: {json_path}")
 
-            report = generate_report(all_results, prompt_key=prompt_key)
-            report_path = output_dir / f"report_{prompt_key}_{timestamp}.md"
-            with open(report_path, "w") as f:
-                f.write(report)
-            print(f"比較報告: {report_path}")
-        else:
-            print(f"Prompt {prompt_key}: 沒有測試結果。")
+    report = generate_report(all_results, prompt_key=prompt_key)
+    report_path = output_dir / f"report_{label}_{timestamp}.md"
+    with open(report_path, "w") as f:
+        f.write(report)
+    print(f"比較報告: {report_path}")
 
 
 if __name__ == "__main__":
