@@ -2,7 +2,10 @@
 """LLM ASR Post-Processing Benchmark Tool."""
 
 import re
+import time
 from difflib import SequenceMatcher
+
+import requests
 
 PUNCTUATION_CHARS = set("，。！？；：、「」『』《》")
 
@@ -96,3 +99,52 @@ def score_punctuation(expected: str, output: str) -> tuple[float, float, float]:
         else 0
     )
     return round(precision, 2), round(recall, 2), round(f1, 2)
+
+
+LM_STUDIO_DEFAULT_URL = "http://localhost:1234"
+
+DEFAULT_MODELS = [
+    "qwen3-0.6b-mlx",
+    "qwen/qwen3-1.7b",
+    "qwen/qwen3-4b",
+    "qwen/qwen3-8b",
+    "google/gemma-3-4b",
+    "microsoft/phi-4-mini-reasoning",
+]
+
+
+def call_llm(
+    input_text: str,
+    model: str,
+    base_url: str = LM_STUDIO_DEFAULT_URL,
+) -> dict:
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": input_text},
+        ],
+        "temperature": 0,
+        "max_tokens": 2048,
+    }
+
+    start = time.time()
+    resp = requests.post(
+        f"{base_url}/v1/chat/completions",
+        json=payload,
+        timeout=120,
+    )
+    elapsed = time.time() - start
+    resp.raise_for_status()
+
+    data = resp.json()
+    usage = data.get("usage", {})
+    completion_tokens = usage.get("completion_tokens", 0)
+    tokens_per_sec = completion_tokens / elapsed if elapsed > 0 else 0
+
+    return {
+        "content": data["choices"][0]["message"]["content"].strip(),
+        "usage": usage,
+        "elapsed_s": round(elapsed, 3),
+        "tokens_per_sec": round(tokens_per_sec, 1),
+    }

@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from benchmark_llm import score_terminology, score_preservation, score_punctuation
+from benchmark_llm import score_terminology, score_preservation, score_punctuation, call_llm
 
 class TestTerminologyScoring:
     def test_all_correct(self):
@@ -66,3 +66,28 @@ class TestPunctuationScoring:
         output = "今天天氣很好我們去散步"
         p, r, f1 = score_punctuation(expected, output)
         assert f1 < 50
+
+class TestCallLLM:
+    def test_request_format(self):
+        """Verify the request payload structure (mock test)."""
+        import unittest.mock as mock
+
+        fake_response = mock.MagicMock()
+        fake_response.json.return_value = {
+            "choices": [{"message": {"content": "測試結果。"}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        }
+        fake_response.raise_for_status = mock.MagicMock()
+
+        with mock.patch("benchmark_llm.requests.post", return_value=fake_response) as mock_post:
+            result = call_llm("測試輸入", model="qwen3-8b", base_url="http://localhost:1234")
+            assert result["content"] == "測試結果。"
+            assert result["usage"]["total_tokens"] == 15
+
+            call_args = mock_post.call_args
+            payload = call_args[1]["json"]
+            assert payload["model"] == "qwen3-8b"
+            assert payload["messages"][0]["role"] == "system"
+            assert payload["messages"][1]["role"] == "user"
+            assert payload["messages"][1]["content"] == "測試輸入"
+            assert payload["temperature"] == 0
