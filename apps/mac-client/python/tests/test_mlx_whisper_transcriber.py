@@ -1,6 +1,7 @@
 import unittest
 from verbatim_flow.mlx_whisper_transcriber import (
     _resolve_language, _contains_cjk, _convert_s2t, _model_cache_path,
+    _is_native_traditional,
 )
 
 
@@ -57,3 +58,17 @@ class TestModelCachePath(unittest.TestCase):
         self.assertTrue(str(path).endswith(
             "huggingface/hub/models--mlx-community--whisper-large-v3-mlx"
         ))
+
+
+class TestIsNativeTraditional(unittest.TestCase):
+    def test_breeze_mlx(self):
+        self.assertTrue(_is_native_traditional("eoleedi/Breeze-ASR-25-mlx"))
+
+    def test_breeze_pytorch(self):
+        self.assertTrue(_is_native_traditional("MediaTek-Research/Breeze-ASR-25"))
+
+    def test_whisper_large_v3(self):
+        self.assertFalse(_is_native_traditional("mlx-community/whisper-large-v3-mlx"))
+
+    def test_empty_string(self):
+        self.assertFalse(_is_native_traditional(""))

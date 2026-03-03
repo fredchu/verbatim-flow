@@ -31,6 +31,17 @@ _TRADITIONAL_CHINESE_CODES = {"zh", "yue"}
 # Locale suffixes that indicate Traditional Chinese.
 _TRADITIONAL_SUFFIXES = {"hant", "tw", "hk", "mo"}
 
+# Models that natively output Traditional Chinese (no opencc s2t needed).
+_NATIVE_TRADITIONAL_MODELS = {
+    "eoleedi/Breeze-ASR-25-mlx",
+    "MediaTek-Research/Breeze-ASR-25",
+}
+
+
+def _is_native_traditional(model_id: str) -> bool:
+    """Return True if the model natively outputs Traditional Chinese."""
+    return model_id in _NATIVE_TRADITIONAL_MODELS
+
 
 def _resolve_language(code: str | None) -> tuple[str | None, bool | None]:
     """Resolve locale code to (whisper_language_code, should_convert_to_traditional).
@@ -119,6 +130,7 @@ class MlxWhisperTranscriber:
                 convert_trad = True
 
         if convert_trad and detected_lang in _TRADITIONAL_CHINESE_CODES:
-            text = _convert_s2t(text)
+            if not _is_native_traditional(self.model_name):
+                text = _convert_s2t(text)
 
         return TranscriptResult(text=text)
