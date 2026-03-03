@@ -253,6 +253,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         keyEquivalent: ""
     )
 
+    private lazy var llmSettingsItem = NSMenuItem(
+        title: "LLM Settings...",
+        action: #selector(openLLMSettings),
+        keyEquivalent: ""
+    )
+    private var llmSettingsWindow: LLMSettingsWindow?
+
     private lazy var quitItem = NSMenuItem(
         title: "Quit VerbatimFlow",
         action: #selector(quitApp),
@@ -440,6 +447,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         openLogsItem.target = self
         openTerminologyItem.target = self
         openOpenAISettingsItem.target = self
+        llmSettingsItem.target = self
         aboutMenuItem.target = self
 
         let settingsSubmenu = NSMenu(title: "Settings")
@@ -469,6 +477,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         settingsSubmenu.addItem(NSMenuItem.separator())
         settingsSubmenu.addItem(openTerminologyItem)
         settingsSubmenu.addItem(openOpenAISettingsItem)
+        settingsSubmenu.addItem(llmSettingsItem)
         settingsSubmenu.addItem(openLogsItem)
         settingsMenuItem.submenu = settingsSubmenu
 
@@ -1044,6 +1053,16 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func openOpenAISettings() {
         OpenAISettings.ensureConfigFileExists()
         NSWorkspace.shared.open(OpenAISettings.fileURL)
+    }
+
+    @objc
+    private func openLLMSettings() {
+        if llmSettingsWindow == nil {
+            llmSettingsWindow = LLMSettingsWindow(preferences: preferences)
+        }
+        llmSettingsWindow?.center()
+        llmSettingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc
