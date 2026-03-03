@@ -1,7 +1,9 @@
+import json
 import unittest
+from unittest.mock import patch, MagicMock
 from verbatim_flow.mlx_whisper_transcriber import (
     _resolve_language, _contains_cjk, _convert_s2t, _model_cache_path,
-    _is_native_traditional,
+    _is_native_traditional, _add_punctuation,
 )
 
 
@@ -72,3 +74,74 @@ class TestIsNativeTraditional(unittest.TestCase):
 
     def test_empty_string(self):
         self.assertFalse(_is_native_traditional(""))
+
+
+class TestAddPunctuation(unittest.TestCase):
+    @patch("verbatim_flow.mlx_whisper_transcriber.urllib.request.urlopen")
+    def test_returns_punctuated_text(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "message": {"content": "好，所以我們繼續。"}
+        }).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        result = _add_punctuation("好所以我們繼續")
+        self.assertEqual(result, "好，所以我們繼續。")
+
+    @patch("verbatim_flow.mlx_whisper_transcriber.urllib.request.urlopen")
+    def test_fallback_on_error(self, mock_urlopen):
+        mock_urlopen.side_effect = Exception("connection refused")
+
+        result = _add_punctuation("好所以我們繼續")
+        self.assertEqual(result, "好所以我們繼續")
+
+    @patch("verbatim_flow.mlx_whisper_transcriber.urllib.request.urlopen")
+    def test_sends_correct_payload(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "message": {"content": "測試。"}
+        }).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        _add_punctuation("測試")
+
+        # Verify the request was made with correct URL and payload.
+        call_args = mock_urlopen.call_args
+        req = call_args[0][0]
+        self.assertEqual(req.full_url, "http://localhost:11434/api/chat")
+        payload = json.loads(req.data)
+        self.assertEqual(payload["model"], "qwen3:8b")
+        self.assertEqual(payload["stream"], False)
+        self.assertEqual(payload["messages"][1]["content"], "測試")
+        self.assertIn("/no_think", payload["messages"][0]["content"])
+
+    @patch.dict("os.environ", {
+        "VERBATIMFLOW_OLLAMA_BASE_URL": "http://myhost:9999",
+        "VERBATIMFLOW_LOCAL_REWRITE_MODEL": "llama3:latest",
+    })
+    @patch("verbatim_flow.mlx_whisper_transcriber.urllib.request.urlopen")
+    def test_respects_env_vars(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "message": {"content": "結果。"}
+        }).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        _add_punctuation("結果")
+
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(req.full_url, "http://myhost:9999/api/chat")
+        payload = json.loads(req.data)
+        self.assertEqual(payload["model"], "llama3:latest")
+
+    @patch("verbatim_flow.mlx_whisper_transcriber.urllib.request.urlopen")
+    def test_empty_text_returned_as_is(self, mock_urlopen):
+        result = _add_punctuation("")
+        self.assertEqual(result, "")
+        mock_urlopen.assert_not_called()

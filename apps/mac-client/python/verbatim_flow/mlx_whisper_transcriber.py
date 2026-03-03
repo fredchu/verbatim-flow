@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import sys
+import urllib.request
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,46 @@ def _model_cache_path(model_id: str) -> Path:
     return Path.home() / ".cache" / "huggingface" / "hub" / f"models--{org_model}"
 
 
+def _add_punctuation(text: str) -> str:
+    """Add punctuation to unpunctuated Chinese text via Ollama."""
+    if not text:
+        return text
+
+    import json
+    import os
+
+    base_url = os.environ.get("VERBATIMFLOW_OLLAMA_BASE_URL", "http://localhost:11434")
+    model = os.environ.get("VERBATIMFLOW_LOCAL_REWRITE_MODEL", "qwen3:8b")
+
+    payload = json.dumps({
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "你是標點符號專家。請為以下中文語音辨識文字加上適當的全形標點符號"
+                    "（，。、？！：；）。只加標點，不改動任何文字內容。"
+                    "直接輸出結果，不要解釋。/no_think"
+                ),
+            },
+            {"role": "user", "content": text},
+        ],
+        "stream": False,
+    }).encode()
+
+    req = urllib.request.Request(
+        f"{base_url}/api/chat",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            result = json.loads(resp.read())
+            return result["message"]["content"].strip()
+    except Exception:
+        return text  # Fallback: return unpunctuated text
+
+
 class MlxWhisperTranscriber:
     DEFAULT_MODEL = "mlx-community/whisper-large-v3-mlx"
 
@@ -132,5 +173,9 @@ class MlxWhisperTranscriber:
         if convert_trad and detected_lang in _TRADITIONAL_CHINESE_CODES:
             if not _is_native_traditional(self.model_name):
                 text = _convert_s2t(text)
+
+        # Add punctuation for models that don't output it natively.
+        if _is_native_traditional(self.model_name) and text:
+            text = _add_punctuation(text)
 
         return TranscriptResult(text=text)
