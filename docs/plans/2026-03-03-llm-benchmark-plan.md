@@ -4,7 +4,7 @@
 
 **Goal:** 建立自動化 benchmark 腳本，透過 LM Studio OpenAI-compatible API 評測不同 MLX 模型在 ASR 後處理（術語校正、加標點、文字保留度）上的表現。
 
-**Architecture:** 獨立 Python 腳本（無框架依賴），讀取 JSON 測試集，逐條送 LM Studio API，收集回應後用四個指標自動評分，輸出 JSON 原始結果 + Markdown 比較報告。互動式切換模型。
+**Architecture:** 獨立 Python 腳本（無框架依賴），讀取 JSON 測試集，自動遍歷預設模型清單，透過 LM Studio OpenAI-compatible API 逐條送請求（在 request 中指定 model ID，利用 JIT 自動載入），收集回應後用四個指標自動評分，輸出 JSON 原始結果 + Markdown 比較報告。全自動，無需手動切換模型。
 
 **Tech Stack:** Python 3.10+、requests（HTTP）、標準庫（json, time, re, difflib, pathlib, datetime）
 
@@ -444,6 +444,8 @@ git commit -m "feat: add scoring functions for LLM benchmark (terminology, prese
 **Files:**
 - Modify: `scripts/benchmark_llm.py`（加入 API 呼叫邏輯）
 
+LM Studio 支援 JIT（Just-In-Time）自動載入：在 request 的 `model` 欄位指定模型 ID，LM Studio 會自動載入該模型。不需要手動切換。
+
 **Step 1: 寫 API 呼叫的測試**
 
 新增到 `scripts/tests/test_benchmark_scoring.py`：
@@ -464,13 +466,14 @@ class TestCallLLM:
         fake_response.raise_for_status = mock.MagicMock()
 
         with mock.patch("benchmark_llm.requests.post", return_value=fake_response) as mock_post:
-            result = call_llm("測試輸入", "http://localhost:1234")
+            result = call_llm("測試輸入", model="qwen3-8b", base_url="http://localhost:1234")
             assert result["content"] == "測試結果。"
             assert result["usage"]["total_tokens"] == 15
 
             # Verify request structure
             call_args = mock_post.call_args
             payload = call_args[1]["json"]
+            assert payload["model"] == "qwen3-8b"
             assert payload["messages"][0]["role"] == "system"
             assert payload["messages"][1]["role"] == "user"
             assert payload["messages"][1]["content"] == "測試輸入"
@@ -493,20 +496,35 @@ import requests
 
 LM_STUDIO_DEFAULT_URL = "http://localhost:1234"
 
+# 預設模型清單（LM Studio model ID）
+# LM Studio JIT 會自動載入指定的模型
+DEFAULT_MODELS = [
+    "qwen3-0.6b-mlx",
+    "qwen/qwen3-1.7b",
+    "qwen/qwen3-4b",
+    "qwen/qwen3-8b",
+    "google/gemma-3-4b",
+    "microsoft/phi-4-mini-reasoning",
+]
+
 
 def call_llm(
-    input_text: str, base_url: str = LM_STUDIO_DEFAULT_URL
+    input_text: str,
+    model: str,
+    base_url: str = LM_STUDIO_DEFAULT_URL,
 ) -> dict:
     """Send input to LM Studio OpenAI-compatible API.
 
     Args:
         input_text: The ASR text to process.
+        model: LM Studio model ID (e.g. "qwen/qwen3-8b").
         base_url: LM Studio server URL.
 
     Returns:
         Dict with keys: content, usage, elapsed_s, tokens_per_sec
     """
     payload = {
+        "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": input_text},
@@ -547,7 +565,7 @@ Expected: PASS
 
 ```bash
 git add scripts/benchmark_llm.py scripts/tests/test_benchmark_scoring.py
-git commit -m "feat: add LM Studio API call function for benchmark"
+git commit -m "feat: add LM Studio API call function with model parameter for benchmark"
 ```
 
 ---
@@ -694,10 +712,12 @@ git commit -m "feat: add Markdown report generator for benchmark"
 
 ---
 
-### Task 5: 主程式（互動式 CLI）
+### Task 5: 主程式（全自動 CLI）
 
 **Files:**
 - Modify: `scripts/benchmark_llm.py`（加入 `main` + CLI 邏輯）
+
+LM Studio 支援 JIT 自動載入，所以腳本可以自動遍歷 `DEFAULT_MODELS` 清單，在 request 中指定 model ID，無需手動切換。支援 `--models` 參數指定特定模型。
 
 **Step 1: 實作主程式**
 
@@ -705,20 +725,21 @@ git commit -m "feat: add Markdown report generator for benchmark"
 
 ```python
 import json
+import argparse
 from pathlib import Path
 
 
 def run_benchmark(
     testcases_path: str,
+    model: str,
     base_url: str = LM_STUDIO_DEFAULT_URL,
-    output_dir: str = "scripts/benchmark_results",
 ) -> dict:
     """Run benchmark for one model.
 
     Args:
         testcases_path: Path to benchmark_testcases.json.
+        model: LM Studio model ID.
         base_url: LM Studio API URL.
-        output_dir: Directory for results.
 
     Returns:
         Dict with per-case results and averages.
@@ -729,7 +750,7 @@ def run_benchmark(
     cases = []
     for tc in testcases:
         print(f"  [{tc['id']}] {tc['input'][:40]}...")
-        result = call_llm(tc["input"], base_url)
+        result = call_llm(tc["input"], model=model, base_url=base_url)
 
         term_score = score_terminology(result["content"], tc["terminology_corrections"])
         pres_score = score_preservation(tc["input"], result["content"], tc.get("terminology_pairs", []))
@@ -774,7 +795,20 @@ def run_benchmark(
 
 
 def main():
-    """Interactive CLI for running benchmarks across multiple models."""
+    """Automated CLI for running benchmarks across multiple models."""
+    parser = argparse.ArgumentParser(description="LLM ASR Post-Processing Benchmark")
+    parser.add_argument(
+        "--models", nargs="+",
+        help="Model IDs to test (default: all in DEFAULT_MODELS)",
+    )
+    parser.add_argument(
+        "--url", default=LM_STUDIO_DEFAULT_URL,
+        help=f"LM Studio API URL (default: {LM_STUDIO_DEFAULT_URL})",
+    )
+    args = parser.parse_args()
+
+    models = args.models or DEFAULT_MODELS
+
     testcases_path = Path(__file__).parent / "benchmark_testcases.json"
     output_dir = Path(__file__).parent / "benchmark_results"
     output_dir.mkdir(exist_ok=True)
@@ -790,39 +824,37 @@ def main():
     print("LLM ASR Post-Processing Benchmark")
     print("=" * 60)
     print(f"Test cases: {testcases_path}")
-    print(f"LM Studio API: {LM_STUDIO_DEFAULT_URL}")
+    print(f"LM Studio API: {args.url}")
+    print(f"Models to test: {len(models)}")
+    for m in models:
+        print(f"  - {m}")
     print()
 
-    while True:
-        model_name = input("輸入模型名稱（如 qwen3-8b-8bit），或 'q' 結束: ").strip()
-        if model_name.lower() == "q":
-            break
-        if not model_name:
-            continue
-
-        print(f"\n--- 測試模型: {model_name} ---")
+    for i, model in enumerate(models, 1):
+        print(f"\n{'='*60}")
+        print(f"[{i}/{len(models)}] 測試模型: {model}")
+        print(f"{'='*60}")
         try:
-            model_results = run_benchmark(str(testcases_path))
-            all_results["models"][model_name] = model_results
+            model_results = run_benchmark(
+                str(testcases_path), model=model, base_url=args.url,
+            )
+            all_results["models"][model] = model_results
 
-            print(f"\n=== {model_name} 結果 ===")
+            print(f"\n--- {model} 結果 ---")
             print(f"  術語校正率: {model_results['avg_terminology']:.1f}")
             print(f"  文字保留度: {model_results['avg_preservation']:.1f}")
             print(f"  標點 F1:    {model_results['avg_punctuation_f1']:.1f}")
             print(f"  加權總分:   {model_results['avg_weighted']:.1f}")
             print(f"  平均速度:   {model_results['avg_tokens_per_sec']:.0f} tok/s")
         except Exception as e:
-            print(f"Error: {e}")
-            print("請確認 LM Studio 已啟動並載入模型。")
+            print(f"Error testing {model}: {e}")
+            print("跳過此模型，繼續下一個...")
             continue
-
-        print()
 
     if all_results["models"]:
         # Save raw JSON
         json_path = output_dir / f"results_{timestamp}.json"
         with open(json_path, "w") as f:
-            # Convert terminology_detail tuples to lists for JSON
             serializable = json.loads(json.dumps(all_results, default=str))
             json.dump(serializable, f, ensure_ascii=False, indent=2)
         print(f"\n原始結果: {json_path}")
@@ -851,7 +883,7 @@ Expected: `Import OK`
 
 ```bash
 git add scripts/benchmark_llm.py
-git commit -m "feat: add interactive CLI for LLM benchmark runner"
+git commit -m "feat: add automated CLI for LLM benchmark runner"
 ```
 
 ---
@@ -861,25 +893,25 @@ git commit -m "feat: add interactive CLI for LLM benchmark runner"
 **Files:**
 - No new files
 
-**Step 1: 確認 LM Studio 運作中**
+**Step 1: 確認 LM Studio 運作中且 JIT 載入已啟用**
 
 Run: `curl -s http://localhost:1234/v1/models | python3 -m json.tool | head -20`
 
-Expected: 回傳目前載入的模型資訊（若 LM Studio 未啟動會報 connection refused）
+Expected: 回傳可用模型列表（若 LM Studio 未啟動會報 connection refused）
 
-**Step 2: 用單一測試案例測試**
+**Step 2: 用單一測試案例測試（指定模型 ID）**
 
 Run: `cd /Users/fredchu/dev/verbatim-flow && python3 -c "
 from scripts.benchmark_llm import call_llm, score_terminology
-result = call_llm('我要用Cloud Code來寫一個work flow')
+result = call_llm('我要用Cloud Code來寫一個work flow', model='qwen3-0.6b-mlx')
 print('Output:', result['content'])
 print('Speed:', result['tokens_per_sec'], 'tok/s')
 print('Terminology:', score_terminology(result['content'], ['Claude Code', 'workflow']))
 "`
 
-Expected: 輸出含 "Claude Code" 和 "workflow"，術語分數 100
+Expected: LM Studio JIT 自動載入模型，輸出含 "Claude Code" 和 "workflow"
 
-**Step 3: 確認所有測試通過**
+**Step 3: 確認所有單元測試通過**
 
 Run: `cd /Users/fredchu/dev/verbatim-flow && python3 -m pytest scripts/tests/test_benchmark_scoring.py -v`
 
@@ -908,12 +940,15 @@ git commit -m "feat: complete LLM ASR benchmark tool with scoring, API, and repo
 
 ```bash
 cd /Users/fredchu/dev/verbatim-flow
+
+# 測試所有預設模型（全自動，LM Studio JIT 自動切換）
 python3 scripts/benchmark_llm.py
+
+# 只測特定模型
+python3 scripts/benchmark_llm.py --models qwen/qwen3-8b qwen/qwen3-4b
+
+# 指定不同的 LM Studio URL
+python3 scripts/benchmark_llm.py --url http://localhost:5678
 ```
 
-1. 在 LM Studio 載入第一個模型（如 Qwen3-0.6B-8bit）
-2. 在終端輸入模型名稱 `qwen3-0.6b-8bit`
-3. 等待 20 則測試跑完
-4. 在 LM Studio 切換下一個模型
-5. 重複直到所有 8 個模型測試完
-6. 輸入 `q` 結束，查看 `scripts/benchmark_results/` 下的報告
+腳本會自動遍歷模型清單，每個模型跑 20 則測試，最後產生比較報告到 `scripts/benchmark_results/`。

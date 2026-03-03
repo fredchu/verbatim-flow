@@ -112,12 +112,13 @@ scripts/
 
 ### 執行流程
 
-1. 讀取 `benchmark_testcases.json`
-2. 提示使用者確認 LM Studio 已載入模型，輸入模型名稱
-3. 對每個測試案例發送 POST 到 `http://localhost:1234/v1/chat/completions`
-4. 收集回應、計算四個指標
-5. 存入 JSON + 產生 Markdown 比較表
-6. 提示「切換下一個模型，按 Enter 繼續」，重複 2-5
+1. 讀取 `benchmark_testcases.json` 和模型清單
+2. 自動遍歷模型清單，在 API request 的 `model` 欄位指定模型 ID
+3. LM Studio JIT（Just-In-Time）自動載入指定模型
+4. 對每個測試案例發送 POST 到 `http://localhost:1234/v1/chat/completions`
+5. 收集回應、計算四個指標
+6. 所有模型測試完成後，存入 JSON + 產生 Markdown 比較表
+7. 支援 `--models` 參數指定特定模型子集
 
 ### 提示詞（初始版本 v1）
 
