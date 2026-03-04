@@ -46,6 +46,11 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         action: #selector(setClarifyMode),
         keyEquivalent: ""
     )
+    private lazy var localRewriteModeItem = NSMenuItem(
+        title: "Local Rewrite (Ollama)",
+        action: #selector(setLocalRewriteMode),
+        keyEquivalent: ""
+    )
 
     private let engineMenuItem = NSMenuItem(title: "Recognition Engine", action: nil, keyEquivalent: "")
     private lazy var engineAppleItem = NSMenuItem(
@@ -359,10 +364,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
         formatOnlyModeItem.target = self
         clarifyModeItem.target = self
+        localRewriteModeItem.target = self
 
         let modeSubmenu = NSMenu(title: "Mode")
         modeSubmenu.addItem(formatOnlyModeItem)
         modeSubmenu.addItem(clarifyModeItem)
+        modeSubmenu.addItem(localRewriteModeItem)
         modeMenuItem.submenu = modeSubmenu
 
         engineAppleItem.target = self
@@ -625,6 +632,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func refreshModeChecks() {
         formatOnlyModeItem.state = controller.currentMode == .formatOnly ? .on : .off
         clarifyModeItem.state = controller.currentMode == .clarify ? .on : .off
+        localRewriteModeItem.state = controller.currentMode == .localRewrite ? .on : .off
     }
 
     private func refreshEngineChecks() {
@@ -777,6 +785,13 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func setClarifyMode() {
         controller.setMode(.clarify)
         preferences.saveMode(.clarify)
+        refreshModeChecks()
+    }
+
+    @objc
+    private func setLocalRewriteMode() {
+        controller.setMode(.localRewrite)
+        preferences.saveMode(.localRewrite)
         refreshModeChecks()
     }
 

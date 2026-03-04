@@ -162,7 +162,7 @@ final class AppController {
 
         primaryHotkeyMonitor = makeHotkeyMonitor(
             hotkey: hotkey,
-            segmentMode: mode,
+            segmentMode: nil,
             monitorLabel: "primary"
         )
         primaryHotkeyMonitor?.start()
@@ -636,6 +636,23 @@ final class AppController {
             }
         }
 
+        if commandParsed.effectiveMode == .localRewrite {
+            do {
+                let textToRewrite = finalText
+                let localeToRewrite = localeIdentifier
+                let rewritten = try await Task.detached(priority: .userInitiated) {
+                    try LocalRewriter.rewrite(
+                        text: textToRewrite,
+                        localeIdentifier: localeToRewrite
+                    )
+                }.value
+                finalText = rewritten.text
+                emit("[local-rewrite] ollama rewrite applied model=\(rewritten.model)")
+            } catch {
+                emit("[local-rewrite] ollama rewrite unavailable, fallback to rules: \(error)")
+            }
+        }
+
         onTranscriptCommitted?(finalText)
 
         if guarded.fellBackToRaw {
@@ -841,7 +858,7 @@ final class AppController {
 
     private func makeHotkeyMonitor(
         hotkey: Hotkey,
-        segmentMode: OutputMode,
+        segmentMode: OutputMode?,
         monitorLabel: String
     ) -> HotkeyMonitor {
         HotkeyMonitor(
@@ -859,7 +876,7 @@ final class AppController {
                 }
 
                 let accepted = MainActor.assumeIsolated {
-                    self.shouldAcceptHotkeyPress(segmentMode: segmentMode, monitorLabel: monitorLabel)
+                    self.shouldAcceptHotkeyPress(segmentMode: segmentMode ?? self.mode, monitorLabel: monitorLabel)
                 }
                 guard accepted else {
                     RuntimeLogger.log("[hotkey-bridge] onPressed callback rejected by state gate monitor=\(monitorLabel)")

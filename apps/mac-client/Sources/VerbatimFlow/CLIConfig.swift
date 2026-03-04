@@ -5,6 +5,7 @@ enum OutputMode: String {
     case raw
     case formatOnly = "format-only"
     case clarify
+    case localRewrite = "local-rewrite"
 }
 
 enum RecognitionEngine: String {
@@ -166,7 +167,7 @@ struct CLIConfig {
             case "--mode":
                 index += 1
                 guard index < args.count, let mode = OutputMode(rawValue: args[index]) else {
-                    throw ConfigError.invalidValue("--mode", "raw | format-only | clarify")
+                    throw ConfigError.invalidValue("--mode", "raw | format-only | clarify | local-rewrite")
                 }
                 config = config.replacing(mode: mode)
             case "--engine":
@@ -257,7 +258,7 @@ enum HelpPrinter {
             "verbatim-flow",
             "",
             "Usage:",
-            "  verbatim-flow [--mode raw|format-only|clarify] [--engine apple|whisper|openai|qwen|mlx-whisper] [--whisper-model tiny|base|small|medium|large-v3] [--whisper-compute-type int8|int8_float16|float16|float32] [--openai-model gpt-4o-mini-transcribe|whisper-1] [--qwen-model <hf-id>] [--mlx-whisper-model <hf-id>] [--locale <id>] [--hotkey ctrl+shift+space|shift+option] [--require-on-device] [--dry-run]",
+            "  verbatim-flow [--mode raw|format-only|clarify|local-rewrite] [--engine apple|whisper|openai|qwen|mlx-whisper] [--whisper-model tiny|base|small|medium|large-v3] [--whisper-compute-type int8|int8_float16|float16|float32] [--openai-model gpt-4o-mini-transcribe|whisper-1] [--qwen-model <hf-id>] [--mlx-whisper-model <hf-id>] [--locale <id>] [--hotkey ctrl+shift+space|shift+option] [--require-on-device] [--dry-run]",
             "",
             "Defaults:",
             "  --mode raw",

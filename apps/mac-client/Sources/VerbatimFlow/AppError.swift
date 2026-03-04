@@ -14,6 +14,7 @@ enum AppError: Error, CustomStringConvertible {
     case mlxWhisperScriptNotFound
     case mlxWhisperTranscriptionFailed(String)
     case openAIClarifyFailed(String)
+    case localRewriteFailed(String)
     case retryAudioUnavailable
     case retryAudioUnsupportedEngine(String)
     case eventSourceCreationFailed
@@ -65,6 +66,11 @@ enum AppError: Error, CustomStringConvertible {
                 return "OpenAI clarify rewrite failed"
             }
             return "OpenAI clarify rewrite failed: \(details)"
+        case .localRewriteFailed(let details):
+            if details.isEmpty {
+                return "Local LLM rewrite failed"
+            }
+            return "Local LLM rewrite failed: \(details)"
         case .retryAudioUnavailable:
             return "No failed recording is available to retry"
         case .retryAudioUnsupportedEngine(let engine):
