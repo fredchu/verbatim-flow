@@ -29,7 +29,7 @@ def _ensure_model() -> Path:
     urllib.request.urlretrieve(url, archive_path)
     print(f"Extracting to {MODEL_DIR} ...")
     with tarfile.open(archive_path, "r:bz2") as tar:
-        tar.extractall(path=MODEL_DIR)
+        tar.extractall(path=MODEL_DIR, filter="data")
     archive_path.unlink()
     if not MODEL_FILE.exists():
         raise FileNotFoundError(f"Model file not found after extraction: {MODEL_FILE}")

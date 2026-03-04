@@ -509,7 +509,7 @@ def main():
     punc_model = None
     bert_modes = [m for m in modes if m.startswith("bert")]
     if bert_modes:
-        print("Loading FunASR CT-Transformer punctuation model...")
+        print("Loading CT-Transformer punctuation model...")
         from benchmark_punctuation import PunctuationModel
         punc_model = PunctuationModel()
         print("Punctuation model loaded.\n")
