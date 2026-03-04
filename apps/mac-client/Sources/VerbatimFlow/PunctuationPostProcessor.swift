@@ -5,7 +5,8 @@ enum PunctuationPostProcessor {
 
     /// Run sherpa-onnx punctuation + terminology correction via Python script.
     /// Returns processed text, or throws on failure.
-    static func process(text: String, language: String) throws -> String {
+    /// When `skipPunctuation` is true, only terminology correction runs (for LLM modes that add their own punctuation).
+    static func process(text: String, language: String, skipPunctuation: Bool = false) throws -> String {
         guard !text.isEmpty else { return "" }
 
         guard let scriptURL = PythonScriptRunner.resolveScript(named: "postprocess_asr.py") else {
@@ -22,10 +23,14 @@ enum PunctuationPostProcessor {
         let errorPipe = Pipe()
 
         process.executableURL = pythonURL
-        process.arguments = [
+        var args = [
             scriptURL.path,
             "--language", language
         ]
+        if skipPunctuation {
+            args.append("--no-punctuation")
+        }
+        process.arguments = args
         process.standardInput = inputPipe
         process.standardOutput = outputPipe
         process.standardError = errorPipe
