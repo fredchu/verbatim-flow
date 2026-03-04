@@ -13,49 +13,51 @@ import requests
 
 PUNCTUATION_CHARS = set("，。！？；：、「」『』《》")
 
-TERMINOLOGY_TABLE = """歐拉瑪 → Ollama
-Comet → Commit
-walk flow → workflow
-work flow → workflow
-偷坑 → token
-B肉 → BROLL
-逼肉 → BROLL
-Cloud Code → Claude Code
-Super power → Superpowers
-Super powers → Superpowers
-Brise ASR → Breeze ASR
-Bruce ASR → Breeze ASR
-Brice ASR → Breeze ASR
-Quint 3 → Qwen3
-Quant 3 → Qwen3
-Quant 38B → Qwen3 8B
-集聚 → 級距
-LIM Studio → LM Studio
-Emerald X → MLX
-M2X → MLX
-Git Hub → GitHub
-Open AI → OpenAI
-Chat GPT → ChatGPT
-Open CC → OpenCC
-Forced Aligner → ForcedAligner"""
+TERMINOLOGY_RULES = [
+    # (pattern, replacement, flags)
+    # NOTE: English patterns use re.ASCII so that \b treats only ASCII
+    # alphanumerics as word characters, allowing correct matching at
+    # Chinese-English boundaries (e.g. "Code的" or "的work").
+
+    # --- 英文術語：\b + IGNORECASE + ASCII ---
+    (r'\bGit\s+Hub\b', 'GitHub', re.IGNORECASE | re.ASCII),
+    (r'\bOpen\s+AI\b', 'OpenAI', re.IGNORECASE | re.ASCII),
+    (r'\bChat\s+GPT\b', 'ChatGPT', re.IGNORECASE | re.ASCII),
+    (r'\bOpen\s+CC\b', 'OpenCC', re.IGNORECASE | re.ASCII),
+    (r'\bCloud\s+Code\b', 'Claude Code', re.IGNORECASE | re.ASCII),
+    (r'\bSuper\s*powers?\b', 'Superpowers', re.IGNORECASE | re.ASCII),
+    (r'\bw(?:alk|ork)\s+flow\b', 'workflow', re.IGNORECASE | re.ASCII),
+    (r'\bLIM\s+Studio\b', 'LM Studio', re.IGNORECASE | re.ASCII),
+    (r'\bEmerald\s+X\b', 'MLX', re.IGNORECASE | re.ASCII),
+    (r'\bM2X\b', 'MLX', re.ASCII),
+    (r'\bComet\b', 'Commit', re.ASCII),
+    (r'\bForced\s+Aligner\b', 'ForcedAligner', re.IGNORECASE | re.ASCII),
+
+    # ASR 音譯模糊匹配
+    (r'\bBri[sc]e\s+ASR\b', 'Breeze ASR', re.IGNORECASE | re.ASCII),
+    (r'\bBruce\s+ASR\b', 'Breeze ASR', re.IGNORECASE | re.ASCII),
+    (r'\bQu[ai]nt\s*3\b', 'Qwen3', re.IGNORECASE | re.ASCII),
+    (r'\bQuant\s*3\s*8\s*B\b', 'Qwen3 8B', re.IGNORECASE | re.ASCII),
+
+    # --- 中文音譯：無 \b ---
+    (r'歐拉瑪', 'Ollama', 0),
+    (r'偷坑', 'token', 0),
+    (r'[B逼]肉', 'BROLL', 0),
+    (r'集聚', '級距', 0),
+]
+
+# Plain-text table for LLM prompts (generated from TERMINOLOGY_RULES)
+TERMINOLOGY_TABLE = "\n".join(
+    f"{pattern} → {replacement}" for pattern, replacement, _ in TERMINOLOGY_RULES
+)
 
 
 def apply_terminology_regex(text: str) -> str:
-    """Apply terminology corrections using string replacement.
-
-    Patterns are sorted by length (longest first) so that more specific
-    patterns like 'Super powers' match before shorter ones like 'Super power'.
-    """
-    pairs = []
-    for line in TERMINOLOGY_TABLE.strip().split("\n"):
-        wrong, correct = line.split("→", 1)
-        pairs.append((wrong.strip(), correct.strip()))
-    pairs.sort(key=lambda p: len(p[0]), reverse=True)
-
-    result = text
-    for wrong, correct in pairs:
-        result = result.replace(wrong, correct)
-    return result
+    """Apply terminology corrections using regex patterns."""
+    sorted_rules = sorted(TERMINOLOGY_RULES, key=lambda r: len(r[0]), reverse=True)
+    for pattern, replacement, flags in sorted_rules:
+        text = re.sub(pattern, replacement, text, flags=flags)
+    return text
 
 
 PROMPTS = {
