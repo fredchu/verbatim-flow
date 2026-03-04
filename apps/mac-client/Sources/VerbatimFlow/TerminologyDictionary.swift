@@ -125,7 +125,7 @@ B肉 => BROLL
         let escaped = NSRegularExpression.escapedPattern(for: source)
         let needsWordBoundary = source.rangeOfCharacter(from: CharacterSet.alphanumerics) != nil
         let pattern = needsWordBoundary
-            ? "(?<![\\p{L}\\p{N}_])\(escaped)(?![\\p{L}\\p{N}_])"
+            ? "(?<![a-zA-Z0-9_])\(escaped)(?![a-zA-Z0-9_])"
             : escaped
 
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
