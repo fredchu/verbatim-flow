@@ -575,16 +575,24 @@ final class AppController {
         }
 
         // --- Punctuation + terminology post-processing (Python) ---
+        // Skip for LLM rewrite modes: LLM adds its own punctuation
+        let needsPunctuation = commandParsed.effectiveMode != .clarify
+            && commandParsed.effectiveMode != .localRewrite
         let postprocessedContent: String
-        do {
-            postprocessedContent = try PunctuationPostProcessor.process(
-                text: commandParsed.content,
-                language: localeIdentifier
-            )
-            emit("[punctuation] post-processing applied")
-        } catch {
+        if needsPunctuation {
+            do {
+                postprocessedContent = try PunctuationPostProcessor.process(
+                    text: commandParsed.content,
+                    language: localeIdentifier
+                )
+                emit("[punctuation] post-processing applied")
+            } catch {
+                postprocessedContent = commandParsed.content
+                emit("[punctuation] post-processing failed, fallback to raw: \(error)")
+            }
+        } else {
             postprocessedContent = commandParsed.content
-            emit("[punctuation] post-processing failed, fallback to raw: \(error)")
+            emit("[punctuation] skipped for \(commandParsed.effectiveMode.rawValue) mode (LLM handles punctuation)")
         }
 
         let guarded = TextGuard(mode: commandParsed.effectiveMode).apply(raw: postprocessedContent)
@@ -652,6 +660,13 @@ final class AppController {
                 emit("[local-rewrite] ollama rewrite unavailable, fallback to rules: \(error)")
             }
         }
+
+        // Defensive: collapse consecutive duplicate punctuation (e.g. ，， → ，)
+        finalText = finalText.replacingOccurrences(
+            of: "([，。！？；：、,\\.!?;:]){2,}",
+            with: "$1",
+            options: .regularExpression
+        )
 
         onTranscriptCommitted?(finalText)
 
