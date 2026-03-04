@@ -6,7 +6,7 @@ struct MixedLanguageEnhancementResult {
 }
 
 enum MixedLanguageEnhancer {
-    private static let englishTokenRegex = try? NSRegularExpression(pattern: "[A-Za-z][A-Za-z\\-']*", options: [])
+    private static let englishTokenRegex = try? NSRegularExpression(pattern: "[A-Za-z][A-Za-z0-9\\-']*", options: [])
     private static let hanCharacterRegex = try? NSRegularExpression(pattern: "\\p{Han}", options: [])
     private static let hanTokenRegex = try? NSRegularExpression(pattern: "[\\p{Han}]{2,6}", options: [])
 
