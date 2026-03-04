@@ -19,6 +19,9 @@ docs/REGRESSION_LOG.md
 # Benchmark results
 scripts/benchmark_results/
 
+# Punctuation model files
+scripts/models/
+
 # Security defensive rules
 *.pem
 *.key
