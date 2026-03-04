@@ -574,7 +574,20 @@ final class AppController {
             }
         }
 
-        let guarded = TextGuard(mode: commandParsed.effectiveMode).apply(raw: commandParsed.content)
+        // --- Punctuation + terminology post-processing (Python) ---
+        let postprocessedContent: String
+        do {
+            postprocessedContent = try PunctuationPostProcessor.process(
+                text: commandParsed.content,
+                language: localeIdentifier
+            )
+            emit("[punctuation] post-processing applied")
+        } catch {
+            postprocessedContent = commandParsed.content
+            emit("[punctuation] post-processing failed, fallback to raw: \(error)")
+        }
+
+        let guarded = TextGuard(mode: commandParsed.effectiveMode).apply(raw: postprocessedContent)
         guard !guarded.text.isEmpty else {
             if commandParsed.matchedCommand != nil {
                 emit("[voice-command] command detected but no content after command")
