@@ -46,16 +46,30 @@ TERMINOLOGY_RULES = [
     (r'集聚', '級距', 0),
 ]
 
-# Plain-text table for LLM prompts (generated from TERMINOLOGY_RULES)
+def _pattern_to_readable(pattern: str) -> str:
+    """Convert regex pattern to human-readable form for LLM prompts."""
+    text = pattern
+    text = text.replace(r'\b', '')
+    text = re.sub(r'\\s[+*]', ' ', text)
+    text = re.sub(r'\(\?:[^)]+\)', lambda m: m.group(0)[3:-1].split('|')[0], text)
+    text = re.sub(r'\[[^\]]+\]', lambda m: m.group(0)[1], text)
+    text = text.rstrip('?')
+    return text.strip()
+
+
+# Plain-text table for LLM prompts (readable, not raw regex)
 TERMINOLOGY_TABLE = "\n".join(
-    f"{pattern} → {replacement}" for pattern, replacement, _ in TERMINOLOGY_RULES
+    f"{_pattern_to_readable(pattern)} → {replacement}"
+    for pattern, replacement, _ in TERMINOLOGY_RULES
 )
+
+# Pre-sorted by pattern length (longest first) for specificity
+_SORTED_RULES = sorted(TERMINOLOGY_RULES, key=lambda r: len(r[0]), reverse=True)
 
 
 def apply_terminology_regex(text: str) -> str:
     """Apply terminology corrections using regex patterns."""
-    sorted_rules = sorted(TERMINOLOGY_RULES, key=lambda r: len(r[0]), reverse=True)
-    for pattern, replacement, flags in sorted_rules:
+    for pattern, replacement, flags in _SORTED_RULES:
         text = re.sub(pattern, replacement, text, flags=flags)
     return text
 
