@@ -570,7 +570,7 @@ feat(breeze-asr): support custom punctuation prompt via env var
 
 ```bash
 git checkout main
-git checkout -b tmp/full-build-$(date +%Y%m%d-%H%M%S)
+git checkout -b dev-$(date +%Y%m%d-%H%M%S)
 git merge feat/breeze-asr --no-edit
 git merge feat/local-rewrite --no-edit  # resolve CLIConfig conflict if needed
 git merge feat/mlx-whisper --no-edit
@@ -601,5 +601,5 @@ open /Applications/VerbatimFlow.app
 
 ```bash
 git checkout feat/breeze-asr  # or feat/local-rewrite
-git branch -D tmp/full-build-*
+git branch -D dev-*
 ```
