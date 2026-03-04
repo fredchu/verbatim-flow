@@ -70,6 +70,36 @@ def _contains_cjk(text: str) -> bool:
     return any("\u4e00" <= ch <= "\u9fff" for ch in text)
 
 
+_HW_TO_FW: dict[str, str] = {
+    ",": "，",
+    ".": "。",
+    "?": "？",
+    "!": "！",
+    ":": "：",
+    ";": "；",
+}
+
+
+def _normalize_cjk_punctuation(text: str) -> str:
+    """Replace half-width punctuation with full-width equivalents in CJK text.
+
+    Handles punctuation followed by space, no space, multiple spaces, or at
+    end-of-string.  Decimal/thousands patterns (e.g. 3.5, 3,000) are preserved
+    via negative look-behind/ahead for digits.
+    """
+    if not _contains_cjk(text):
+        return text
+    import re
+    for hw, fw in _HW_TO_FW.items():
+        escaped = re.escape(hw)
+        if hw in (".", ","):
+            # Protect digit-punct-digit patterns (decimals, thousands).
+            text = re.sub(rf"(?<!\d){escaped}(?!\d)\s*", fw, text)
+        else:
+            text = re.sub(rf"{escaped}\s*", fw, text)
+    return text
+
+
 def _convert_s2t(text: str) -> str:
     """Convert Simplified Chinese to Traditional Chinese via opencc."""
     try:
@@ -150,11 +180,16 @@ class MlxWhisperTranscriber:
 
         whisper_lang, convert_trad = _resolve_language(language)
 
+        prompt = None
+        if whisper_lang in _TRADITIONAL_CHINESE_CODES:
+            prompt = "以下是普通話的句子，請使用全形標點符號。"
+
         result = mlx_whisper.transcribe(
             audio_path,
             path_or_hf_repo=self.model_name,
             language=whisper_lang,
             word_timestamps=False,
+            initial_prompt=prompt,
         )
         text = result.get("text", "").strip()
 
@@ -175,6 +210,9 @@ class MlxWhisperTranscriber:
                 _, convert_trad = _resolve_language(output_locale)
             else:
                 convert_trad = True
+
+        if detected_lang in _TRADITIONAL_CHINESE_CODES:
+            text = _normalize_cjk_punctuation(text)
 
         if convert_trad and detected_lang in _TRADITIONAL_CHINESE_CODES:
             if not _is_native_traditional(self.model_name):

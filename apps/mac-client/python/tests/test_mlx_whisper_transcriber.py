@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from verbatim_flow.mlx_whisper_transcriber import (
     _resolve_language, _contains_cjk, _convert_s2t, _model_cache_path,
-    _is_native_traditional, _add_punctuation,
+    _is_native_traditional, _add_punctuation, _normalize_cjk_punctuation,
 )
 
 
@@ -51,6 +51,92 @@ class TestConvertS2T(unittest.TestCase):
 
     def test_english_unchanged(self):
         self.assertEqual(_convert_s2t("hello"), "hello")
+
+
+class TestNormalizeCjkPunctuation(unittest.TestCase):
+    def test_comma_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好, 世界"), "你好，世界")
+
+    def test_period_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好. 世界"), "你好。世界")
+
+    def test_question_mark_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好? 世界"), "你好？世界")
+
+    def test_exclamation_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好! 世界"), "你好！世界")
+
+    def test_colon_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("標題: 內容"), "標題：內容")
+
+    def test_semicolon_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("前句; 後句"), "前句；後句")
+
+    def test_trailing_comma(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好,"), "你好，")
+
+    def test_trailing_period(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好."), "你好。")
+
+    def test_trailing_question(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好?"), "你好？")
+
+    def test_trailing_exclamation(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好!"), "你好！")
+
+    def test_decimal_preserved(self):
+        self.assertEqual(_normalize_cjk_punctuation("溫度是3.5度"), "溫度是3.5度")
+
+    def test_number_comma_preserved(self):
+        self.assertEqual(_normalize_cjk_punctuation("共3,000人"), "共3,000人")
+
+    def test_mixed_sentence(self):
+        self.assertEqual(
+            _normalize_cjk_punctuation("今天天氣很好, 我們去公園. 你覺得呢?"),
+            "今天天氣很好，我們去公園。你覺得呢？"
+        )
+
+    def test_english_unchanged(self):
+        self.assertEqual(
+            _normalize_cjk_punctuation("Hello, world. How are you?"),
+            "Hello, world. How are you?"
+        )
+
+    def test_comma_no_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好,世界"), "你好，世界")
+
+    def test_question_no_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好?世界"), "你好？世界")
+
+    def test_period_no_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好.世界"), "你好。世界")
+
+    def test_exclamation_no_space(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好!世界"), "你好！世界")
+
+    def test_comma_multiple_spaces(self):
+        self.assertEqual(_normalize_cjk_punctuation("你好,  世界"), "你好，世界")
+
+    def test_multiple_commas_no_space(self):
+        self.assertEqual(
+            _normalize_cjk_punctuation("我说,你听,他看"),
+            "我说，你听，他看"
+        )
+
+    def test_all_no_space(self):
+        self.assertEqual(
+            _normalize_cjk_punctuation("你好,世界.今天天气很好,我们去公园?好!"),
+            "你好，世界。今天天气很好，我们去公园？好！"
+        )
+
+    def test_already_fullwidth(self):
+        self.assertEqual(
+            _normalize_cjk_punctuation("你好，世界。"),
+            "你好，世界。"
+        )
+
+    def test_empty(self):
+        self.assertEqual(_normalize_cjk_punctuation(""), "")
 
 
 class TestModelCachePath(unittest.TestCase):
