@@ -6,7 +6,7 @@ from terminology import TERMINOLOGY_RULES, apply_terminology_regex
 
 class TestTerminology:
     def test_rules_exist(self):
-        assert len(TERMINOLOGY_RULES) == 25
+        assert len(TERMINOLOGY_RULES) == 28
 
     def test_basic_replacement(self):
         result = apply_terminology_regex("使用歐拉瑪來跑模型")
@@ -41,3 +41,12 @@ class TestTerminology:
 
     def test_alarm_studio(self):
         assert apply_terminology_regex("用Alarm Studio搭配") == "用LM Studio搭配"
+
+    def test_qwen33(self):
+        assert apply_terminology_regex("Qwen33 8B模型") == "Qwen3 8B模型"
+
+    def test_lmstudio_no_space(self):
+        assert apply_terminology_regex("用LMStudio跑") == "用LM Studio跑"
+
+    def test_amplx(self):
+        assert apply_terminology_regex("Qwen3 8B AmplX版本") == "Qwen3 8B MLX版本"

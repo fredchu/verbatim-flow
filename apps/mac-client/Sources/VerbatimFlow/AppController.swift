@@ -575,24 +575,20 @@ final class AppController {
         }
 
         // --- Punctuation + terminology post-processing (Python) ---
-        // Skip for LLM rewrite modes: LLM adds its own punctuation
-        let needsPunctuation = commandParsed.effectiveMode != .clarify
-            && commandParsed.effectiveMode != .localRewrite
+        // LLM rewrite modes: skip punctuation (LLM adds its own) but still run terminology
+        let skipPunctuation = commandParsed.effectiveMode == .clarify
+            || commandParsed.effectiveMode == .localRewrite
         let postprocessedContent: String
-        if needsPunctuation {
-            do {
-                postprocessedContent = try PunctuationPostProcessor.process(
-                    text: commandParsed.content,
-                    language: localeIdentifier
-                )
-                emit("[punctuation] post-processing applied")
-            } catch {
-                postprocessedContent = commandParsed.content
-                emit("[punctuation] post-processing failed, fallback to raw: \(error)")
-            }
-        } else {
+        do {
+            postprocessedContent = try PunctuationPostProcessor.process(
+                text: commandParsed.content,
+                language: localeIdentifier,
+                skipPunctuation: skipPunctuation
+            )
+            emit("[postprocess] applied (skipPunctuation=\(skipPunctuation))")
+        } catch {
             postprocessedContent = commandParsed.content
-            emit("[punctuation] skipped for \(commandParsed.effectiveMode.rawValue) mode (LLM handles punctuation)")
+            emit("[postprocess] failed, fallback to raw: \(error)")
         }
 
         let guarded = TextGuard(mode: commandParsed.effectiveMode).apply(raw: postprocessedContent)
