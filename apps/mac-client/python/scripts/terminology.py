@@ -21,12 +21,17 @@ TERMINOLOGY_RULES = [
     (r'\bM2X\b', 'MLX', re.ASCII),
     (r'\bComet\b', 'Commit', re.ASCII),
     (r'\bForced\s+Aligner\b', 'ForcedAligner', re.IGNORECASE | re.ASCII),
+    (r'\bOrama\b', 'Ollama', re.IGNORECASE | re.ASCII),
+    (r'\bAlarm\s+Studio\b', 'LM Studio', re.IGNORECASE | re.ASCII),
 
     # ASR 音譯模糊匹配
     (r'\bBri[sc]e\s+ASR\b', 'Breeze ASR', re.IGNORECASE | re.ASCII),
     (r'\bBruce\s+ASR\b', 'Breeze ASR', re.IGNORECASE | re.ASCII),
+    (r'\bQu[ai]nt\s*3?\s*8\s*B\b', 'Qwen3 8B', re.IGNORECASE | re.ASCII),
     (r'\bQu[ai]nt\s*3\b', 'Qwen3', re.IGNORECASE | re.ASCII),
-    (r'\bQuant\s*3\s*8\s*B\b', 'Qwen3 8B', re.IGNORECASE | re.ASCII),
+    (r'\bLMS\s+Studio\b', 'LM Studio', re.IGNORECASE | re.ASCII),
+    (r'\bMLS\b', 'MLX', re.ASCII),
+    (r'\bAM2X\b', 'MLX', re.ASCII),
 
     # --- 中文音譯：無 \b ---
     (r'歐拉瑪', 'Ollama', 0),
