@@ -643,6 +643,13 @@ final class AppController {
             }
         }
 
+        // Defensive: collapse consecutive duplicate punctuation (e.g. ，， → ，)
+        finalText = finalText.replacingOccurrences(
+            of: "([，。！？；：、,\\.!?;:]){2,}",
+            with: "$1",
+            options: .regularExpression
+        )
+
         onTranscriptCommitted?(finalText)
 
         if guarded.fellBackToRaw {
