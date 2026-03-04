@@ -180,6 +180,42 @@ class TestTerminologyRegex:
         assert "MLX" in apply_terminology_regex("Emerald X")
         assert "MLX" in apply_terminology_regex("M2X")
 
+    def test_ignorecase_lower(self):
+        result = apply_terminology_regex("用 git hub 管理程式碼")
+        assert "GitHub" in result
+
+    def test_ignorecase_upper(self):
+        result = apply_terminology_regex("用 GIT HUB 管理")
+        assert "GitHub" in result
+
+    def test_word_boundary_protection(self):
+        """GitHub should NOT be split by the 'Git Hub' rule."""
+        result = apply_terminology_regex("上傳到GitHub吧")
+        assert result == "上傳到GitHub吧"
+
+    def test_multi_space_tolerance(self):
+        result = apply_terminology_regex("打開 Chat  GPT 問問題")
+        assert "ChatGPT" in result
+
+    def test_variant_merge_singular(self):
+        result = apply_terminology_regex("這個 Superpower 很強")
+        assert "Superpowers" in result
+
+    def test_variant_merge_plural(self):
+        result = apply_terminology_regex("這些 Super powers 很強")
+        assert "Superpowers" in result
+
+    def test_chinese_in_sentence(self):
+        result = apply_terminology_regex("我每天都在偷坑，歐拉瑪很好用")
+        assert "token" in result
+        assert "Ollama" in result
+
+    def test_combined_chinese_english(self):
+        result = apply_terminology_regex("用歐拉瑪的work flow跑Chat GPT")
+        assert "Ollama" in result
+        assert "workflow" in result
+        assert "ChatGPT" in result
+
 
 import json
 
