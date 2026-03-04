@@ -19,6 +19,8 @@ enum AppError: Error, CustomStringConvertible {
     case eventSourceCreationFailed
     case eventCreationFailed
     case accessibilityPermissionRequired
+    case postprocessScriptNotFound
+    case postprocessFailed(String)
 
     var description: String {
         switch self {
@@ -73,6 +75,10 @@ enum AppError: Error, CustomStringConvertible {
             return "Failed to create keyboard event"
         case .accessibilityPermissionRequired:
             return "Accessibility permission is required for text injection"
+        case .postprocessScriptNotFound:
+            return "Post-processing script (postprocess_asr.py) not found."
+        case .postprocessFailed(let details):
+            return "Post-processing failed: \(details)"
         }
     }
 }
