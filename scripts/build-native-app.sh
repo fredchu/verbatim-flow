@@ -5,19 +5,26 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NATIVE_DIR="$ROOT_DIR/apps/mac-client"
 APP_NAME="VerbatimFlow"
 APP_BUNDLE="$NATIVE_DIR/dist/${APP_NAME}.app"
+TEMP_BUILD_DIR="$(mktemp -d "${TMPDIR:-/tmp}/verbatim-flow-build.XXXXXX")"
+SIGNING_APP_BUNDLE="$TEMP_BUILD_DIR/${APP_NAME}.app"
 EXECUTABLE_NAME="$APP_NAME"
 ICON_FILE="$NATIVE_DIR/Resources/AppIcon.icns"
 BUNDLE_ID="${VERBATIMFLOW_BUNDLE_ID:-com.verbatimflow.app}"
 APP_VERSION="0.1.1"
 APP_BUILD="2"
 
+cleanup() {
+  rm -rf "$TEMP_BUILD_DIR"
+}
+trap cleanup EXIT
+
 cd "$NATIVE_DIR"
 
 swift build -c release --product verbatim-flow --arch arm64 --arch x86_64
 
-rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_BUNDLE/Contents/MacOS"
-mkdir -p "$APP_BUNDLE/Contents/Resources"
+rm -rf "$SIGNING_APP_BUNDLE"
+mkdir -p "$SIGNING_APP_BUNDLE/Contents/MacOS"
+mkdir -p "$SIGNING_APP_BUNDLE/Contents/Resources"
 
 # When building with --arch flags, SPM uses the Apple build system and places
 # the universal binary under .build/apple/Products/Release/ instead of
@@ -25,18 +32,20 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 UNIVERSAL_BIN="$NATIVE_DIR/.build/apple/Products/Release/verbatim-flow"
 SINGLE_ARCH_BIN="$NATIVE_DIR/.build/release/verbatim-flow"
 if [[ -f "$UNIVERSAL_BIN" ]]; then
-  cp "$UNIVERSAL_BIN" "$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
+  cp -X "$UNIVERSAL_BIN" "$SIGNING_APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
 else
-  cp "$SINGLE_ARCH_BIN" "$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
+  cp -X "$SINGLE_ARCH_BIN" "$SIGNING_APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
 fi
-chmod +x "$APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
+chmod +x "$SIGNING_APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME"
 
 "$ROOT_DIR/scripts/generate-app-icon.sh"
 if [[ -f "$ICON_FILE" ]]; then
-  cp "$ICON_FILE" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+  cp -X "$ICON_FILE" "$SIGNING_APP_BUNDLE/Contents/Resources/AppIcon.icns"
+  xattr -c "$SIGNING_APP_BUNDLE/Contents/Resources/AppIcon.icns" 2>/dev/null || true
 fi
+xattr -c "$SIGNING_APP_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME" 2>/dev/null || true
 
-cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
+cat > "$SIGNING_APP_BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -75,21 +84,24 @@ PLIST
 # designated requirement (bundle identifier based, not cdhash).
 # This prevents Accessibility/Input Monitoring permissions from being
 # invalidated on every rebuild.
-xattr -cr "$APP_BUNDLE"
+xattr -cr "$SIGNING_APP_BUNDLE"
 codesign \
   --force \
   --deep \
   --sign - \
   --identifier "$BUNDLE_ID" \
   --requirements "=designated => identifier \"$BUNDLE_ID\"" \
-  "$APP_BUNDLE"
+  "$SIGNING_APP_BUNDLE"
 
 # codesign can re-add FinderInfo with the invisible flag; strip it so the
 # .app is visible when copied into a DMG or opened in Finder.
-xattr -d com.apple.FinderInfo "$APP_BUNDLE" 2>/dev/null || true
+xattr -d com.apple.FinderInfo "$SIGNING_APP_BUNDLE" 2>/dev/null || true
+
+rm -rf "$APP_BUNDLE"
+ditto "$SIGNING_APP_BUNDLE" "$APP_BUNDLE"
 
 echo "[info] signature requirement:"
-codesign -d -r- "$APP_BUNDLE" 2>&1 | tail -n 1
+codesign -d -r- "$SIGNING_APP_BUNDLE" 2>&1 | tail -n 1
 
 echo "[ok] Built app bundle: $APP_BUNDLE"
 echo "[hint] Launch with: open '$APP_BUNDLE'"

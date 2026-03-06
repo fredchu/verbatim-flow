@@ -7,6 +7,14 @@ struct GuardedText {
 
 struct TextGuard {
     let mode: OutputMode
+    private let asciiToFullWidthPunctuation: [Character: Character] = [
+        ",": "，",
+        ".": "。",
+        "!": "！",
+        "?": "？",
+        ";": "；",
+        ":": "："
+    ]
 
     func apply(raw: String) -> GuardedText {
         let trimmedRaw = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -33,7 +41,10 @@ struct TextGuard {
         var output = text
         output = replace(output, pattern: "\\s+", template: " ")
         output = replace(output, pattern: "\\s+([,\\.!?;:，。！？；：])", template: "$1")
-        output = replace(output, pattern: "([,\\.!?;:])(\\S)", template: "$1 $2")
+        if shouldPreferFullWidthPunctuation(output) {
+            output = convertASCIIToFullWidthPunctuation(output)
+        }
+        output = normalizeASCIIPunctuationSpacing(output)
         output = replace(output, pattern: "([，。！？；：])(\\s+)", template: "$1")
         output = replace(output, pattern: "\\s+([)\\]}>])", template: "$1")
         output = replace(output, pattern: "([(\\[<{])\\s+", template: "$1")
@@ -143,6 +154,195 @@ struct TextGuard {
             }
         }
         return false
+    }
+
+    private func shouldPreferFullWidthPunctuation(_ text: String) -> Bool {
+        let hanCount = text.unicodeScalars.filter(\.properties.isIdeographic).count
+        guard hanCount > 0 else {
+            return false
+        }
+
+        guard let regex = try? NSRegularExpression(pattern: "[A-Za-z]+", options: []) else {
+            return true
+        }
+
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        let latinClusterCount = regex.numberOfMatches(in: text, options: [], range: range)
+        return latinClusterCount <= hanCount * 2
+    }
+
+    private func convertASCIIToFullWidthPunctuation(_ text: String) -> String {
+        let characters = Array(text)
+        guard !characters.isEmpty else { return text }
+
+        var output = String()
+        output.reserveCapacity(text.count)
+
+        for index in characters.indices {
+            let character = characters[index]
+            guard let mapped = asciiToFullWidthPunctuation[character] else {
+                output.append(character)
+                continue
+            }
+
+            let previous = previousNonWhitespaceCharacter(in: characters, before: index)
+            let next = nextNonWhitespaceCharacter(in: characters, after: index)
+
+            if shouldConvertToFullWidth(
+                character,
+                previous: previous,
+                next: next
+            ) {
+                output.append(mapped)
+            } else {
+                output.append(character)
+            }
+        }
+
+        return output
+    }
+
+    private func normalizeASCIIPunctuationSpacing(_ text: String) -> String {
+        let characters = Array(text)
+        guard !characters.isEmpty else { return text }
+
+        var output = String()
+        output.reserveCapacity(text.count)
+
+        for index in characters.indices {
+            let character = characters[index]
+            output.append(character)
+
+            guard asciiToFullWidthPunctuation[character] != nil else {
+                continue
+            }
+
+            guard index + 1 < characters.count, !characters[index + 1].isWhitespace else {
+                continue
+            }
+
+            let previous = previousNonWhitespaceCharacter(in: characters, before: index)
+            let next = nextNonWhitespaceCharacter(in: characters, after: index)
+
+            if shouldInsertSpaceAfterASCII(
+                character,
+                previous: previous,
+                next: next
+            ) {
+                output.append(" ")
+            }
+        }
+
+        return output
+    }
+
+    private func shouldConvertToFullWidth(
+        _ punctuation: Character,
+        previous: Character?,
+        next: Character?
+    ) -> Bool {
+        if punctuation == ":" && next == "/" {
+            return false
+        }
+
+        if punctuation == "." && isASCIIAlphaNumeric(previous) && isASCIIAlphaNumeric(next) {
+            return false
+        }
+
+        if (punctuation == "," || punctuation == "." || punctuation == ":")
+            && isASCIIDigit(previous) && isASCIIDigit(next)
+        {
+            return false
+        }
+
+        if isHanCharacter(previous) || isHanCharacter(next) {
+            return true
+        }
+
+        return next == nil
+    }
+
+    private func shouldInsertSpaceAfterASCII(
+        _ punctuation: Character,
+        previous: Character?,
+        next: Character?
+    ) -> Bool {
+        guard let next else {
+            return false
+        }
+
+        if isHanCharacter(next) {
+            return false
+        }
+
+        if ")]}>\"'，。！？；：,.;:!?".contains(next) {
+            return false
+        }
+
+        if punctuation == ":" && next == "/" {
+            return false
+        }
+
+        if punctuation == "." && isASCIIAlphaNumeric(previous) && isASCIIAlphaNumeric(next) {
+            return false
+        }
+
+        if (punctuation == "," || punctuation == "." || punctuation == ":")
+            && isASCIIDigit(previous) && isASCIIDigit(next)
+        {
+            return false
+        }
+
+        return true
+    }
+
+    private func previousNonWhitespaceCharacter(in characters: [Character], before index: Int) -> Character? {
+        guard index > 0 else { return nil }
+
+        var currentIndex = index - 1
+        while currentIndex >= 0 {
+            let character = characters[currentIndex]
+            if !character.isWhitespace {
+                return character
+            }
+            currentIndex -= 1
+        }
+
+        return nil
+    }
+
+    private func nextNonWhitespaceCharacter(in characters: [Character], after index: Int) -> Character? {
+        guard index + 1 < characters.count else { return nil }
+
+        var currentIndex = index + 1
+        while currentIndex < characters.count {
+            let character = characters[currentIndex]
+            if !character.isWhitespace {
+                return character
+            }
+            currentIndex += 1
+        }
+
+        return nil
+    }
+
+    private func isHanCharacter(_ character: Character?) -> Bool {
+        guard let character else { return false }
+        return character.unicodeScalars.contains(where: \.properties.isIdeographic)
+    }
+
+    private func isASCIIDigit(_ character: Character?) -> Bool {
+        guard let scalar = character?.unicodeScalars.first, character?.unicodeScalars.count == 1 else {
+            return false
+        }
+        return CharacterSet.decimalDigits.contains(scalar)
+    }
+
+    private func isASCIIAlphaNumeric(_ character: Character?) -> Bool {
+        guard let scalar = character?.unicodeScalars.first, character?.unicodeScalars.count == 1 else {
+            return false
+        }
+        return CharacterSet.alphanumerics.contains(scalar)
     }
 
     private func canonicalWord(_ word: String) -> String {
