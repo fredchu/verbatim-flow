@@ -982,8 +982,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         titleLabel.font = NSFont.systemFont(ofSize: 24, weight: .semibold)
         stack.addArrangedSubview(titleLabel)
 
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.1"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2"
         let versionLabel = NSTextField(labelWithString: "Version \(version) (\(build))")
         versionLabel.textColor = .secondaryLabelColor
         stack.addArrangedSubview(versionLabel)

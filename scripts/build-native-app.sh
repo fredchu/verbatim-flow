@@ -8,6 +8,8 @@ APP_BUNDLE="$NATIVE_DIR/dist/${APP_NAME}.app"
 EXECUTABLE_NAME="$APP_NAME"
 ICON_FILE="$NATIVE_DIR/Resources/AppIcon.icns"
 BUNDLE_ID="${VERBATIMFLOW_BUNDLE_ID:-com.verbatimflow.app}"
+APP_VERSION="0.1.1"
+APP_BUILD="2"
 
 cd "$NATIVE_DIR"
 
@@ -56,9 +58,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.1.0</string>
+  <string>${APP_VERSION}</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>${APP_BUILD}</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
   <key>NSMicrophoneUsageDescription</key>

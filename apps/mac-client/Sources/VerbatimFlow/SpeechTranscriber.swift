@@ -295,25 +295,76 @@ final class SpeechTranscriber {
             return ""
         }
 
-        let languageCode = Self.whisperLanguageCode(from: localeIdentifier)
         let selectedModel = openAIModel.rawValue
+        let env = ProcessInfo.processInfo.environment
+        let fileValues = OpenAISettings.loadValues()
+        let languageCode = Self.resolvedOpenAILanguageCodeHint(
+            localeIdentifier: localeIdentifier,
+            environment: env,
+            fileValues: fileValues
+        )
+
         do {
-            let transcript = try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
+            let primaryTranscript = try await Self.transcribeOpenAIAudioFileAsync(
+                audioURL: recordingURL,
+                languageCode: languageCode,
+                modelOverride: selectedModel
+            )
+
+            let autoConfig = OpenAIAutoRouter.resolveConfig(
+                environment: env,
+                fileValues: fileValues
+            )
+            let customRules = TerminologyDictionary.loadRules()
+            let vocabularyHints = DictationVocabulary.fuzzyCorrectionTerms(customHints: customRules.hints)
+
+            var finalTranscript = primaryTranscript
+            if autoConfig.enabled {
+                let analysis = OpenAIAutoRouter.analyzePrimaryTranscript(
+                    primaryTranscript,
+                    localeIdentifier: localeIdentifier,
+                    vocabularyHints: vocabularyHints,
+                    config: autoConfig
+                )
+
+                if analysis.shouldRetry,
+                   autoConfig.secondaryModel.caseInsensitiveCompare(selectedModel) != .orderedSame {
+                    RuntimeLogger.log(
+                        "[openai-auto] reroute triggered primary=\(selectedModel) secondary=\(autoConfig.secondaryModel) risk=\(analysis.riskScore) reasons=\(analysis.reasons.joined(separator: "|"))"
+                    )
+
                     do {
-                        let text = try Self.transcribeOpenAIAudioFile(
+                        let secondaryTranscript = try await Self.transcribeOpenAIAudioFileAsync(
                             audioURL: recordingURL,
                             languageCode: languageCode,
-                            modelOverride: selectedModel
+                            modelOverride: autoConfig.secondaryModel
                         )
-                        continuation.resume(returning: text)
+                        let selection = OpenAIAutoRouter.selectPreferredTranscript(
+                            primaryText: primaryTranscript,
+                            primaryModel: selectedModel,
+                            secondaryText: secondaryTranscript,
+                            secondaryModel: autoConfig.secondaryModel,
+                            localeIdentifier: localeIdentifier,
+                            vocabularyHints: vocabularyHints
+                        )
+                        finalTranscript = selection.transcript
+                        RuntimeLogger.log(
+                            "[openai-auto] selected model=\(selection.selectedModel) primaryScore=\(selection.primaryScore) secondaryScore=\(selection.secondaryScore) reason=\(selection.reason)"
+                        )
                     } catch {
-                        continuation.resume(throwing: error)
+                        RuntimeLogger.log(
+                            "[openai-auto] secondary transcription failed model=\(autoConfig.secondaryModel) error=\(error)"
+                        )
                     }
+                } else {
+                    RuntimeLogger.log(
+                        "[openai-auto] skip reroute model=\(selectedModel) risk=\(analysis.riskScore) reasons=\(analysis.reasons.joined(separator: "|"))"
+                    )
                 }
             }
+
             try? FileManager.default.removeItem(at: recordingURL)
-            return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            return finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             persistFailedRecording(audioURL: recordingURL, durationSec: durationSec)
             throw error
@@ -384,8 +435,26 @@ final class SpeechTranscriber {
         process.standardOutput = outputPipe
         process.standardError = errorPipe
 
+        let terminationSemaphore = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in
+            terminationSemaphore.signal()
+        }
+
         try process.run()
-        process.waitUntilExit()
+        let timeout = resolvedWhisperProcessTimeoutSeconds()
+        var didTerminate = terminationSemaphore.wait(timeout: .now() + timeout) == .success
+        if !didTerminate {
+            RuntimeLogger.log(
+                "[whisper] process timeout after \(Int(timeout))s; terminating pid=\(process.processIdentifier) model=\(model)"
+            )
+            process.terminate()
+            didTerminate = terminationSemaphore.wait(timeout: .now() + 2) == .success
+        }
+        guard didTerminate else {
+            throw AppError.whisperTranscriptionFailed(
+                "Process timed out after \(Int(timeout))s and did not terminate cleanly"
+            )
+        }
 
         let outputText = String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -486,6 +555,27 @@ final class SpeechTranscriber {
         }
 
         throw AppError.openAITranscriptionFailed("Response has no text field")
+    }
+
+    private nonisolated static func transcribeOpenAIAudioFileAsync(
+        audioURL: URL,
+        languageCode: String?,
+        modelOverride: String?
+    ) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let text = try Self.transcribeOpenAIAudioFile(
+                        audioURL: audioURL,
+                        languageCode: languageCode,
+                        modelOverride: modelOverride
+                    )
+                    continuation.resume(returning: text)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
 
     private nonisolated static func resolvedSetting(
@@ -670,6 +760,47 @@ final class SpeechTranscriber {
 
         let languageCode = Locale(identifier: localeIdentifier).language.languageCode?.identifier
         return languageCode?.isEmpty == false ? languageCode : nil
+    }
+
+    private nonisolated static func resolvedOpenAILanguageCodeHint(
+        localeIdentifier: String,
+        environment: [String: String],
+        fileValues: [String: String]
+    ) -> String? {
+        let mode = resolvedSetting(
+            key: "VERBATIMFLOW_OPENAI_LANGUAGE_HINT_MODE",
+            environment: environment,
+            fileValues: fileValues
+        )?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "auto"
+
+        switch mode {
+        case "off", "none", "disabled":
+            return nil
+        case "force", "always":
+            return whisperLanguageCode(from: localeIdentifier)
+        case "auto":
+            let hinted = whisperLanguageCode(from: localeIdentifier)
+            // In Chinese locale, avoid hard forcing "zh" so mixed zh/en terms
+            // can be recognized more naturally by cloud models.
+            if hinted == "zh" {
+                return nil
+            }
+            return hinted
+        default:
+            return whisperLanguageCode(from: localeIdentifier)
+        }
+    }
+
+    private nonisolated static func resolvedWhisperProcessTimeoutSeconds() -> TimeInterval {
+        let env = ProcessInfo.processInfo.environment
+        let fileValues = OpenAISettings.loadValues()
+        let raw = (env["VERBATIMFLOW_WHISPER_PROCESS_TIMEOUT_SECONDS"]
+            ?? fileValues["VERBATIMFLOW_WHISPER_PROCESS_TIMEOUT_SECONDS"])?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let raw, let seconds = Double(raw), seconds >= 15, seconds <= 600 else {
+            return 120
+        }
+        return seconds
     }
 
     private func resolveSpeechAuthorization() async -> Bool {
