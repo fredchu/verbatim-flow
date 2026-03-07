@@ -29,7 +29,7 @@ final class AppController {
     private var transcriber: SpeechTranscriber
     private let injector = TextInjector()
     private var hotkey: Hotkey
-    private let clarifyHotkey: Hotkey
+    private var clarifyHotkey: Hotkey
     private let dryRun: Bool
 
     private var mode: OutputMode
@@ -54,6 +54,9 @@ final class AppController {
             modifiers: [.command, .shift],
             display: "cmd+shift+space"
         )
+    static var defaultClarifyHotkeyValue: Hotkey {
+        defaultClarifyHotkey
+    }
     private static let processingWatchdogTimeoutSeconds: TimeInterval = {
         let env = ProcessInfo.processInfo.environment
         let fileValues = OpenAISettings.loadValues()
@@ -103,6 +106,10 @@ final class AppController {
 
     var currentClarifyHotkeyDisplay: String {
         clarifyHotkey.display
+    }
+
+    var currentClarifyHotkey: Hotkey {
+        clarifyHotkey
     }
 
     var currentHotkey: Hotkey {
@@ -257,6 +264,26 @@ final class AppController {
 
         self.hotkey = hotkey
         emit("[config] hotkey set to \(hotkey.display)")
+
+        if wasRunning {
+            start()
+        }
+    }
+
+    func setClarifyHotkey(_ hotkey: Hotkey) {
+        let sameHotkey = self.clarifyHotkey.keyCode == hotkey.keyCode &&
+            self.clarifyHotkey.modifiers == hotkey.modifiers
+        guard !sameHotkey else {
+            return
+        }
+
+        let wasRunning = isRunning
+        if wasRunning {
+            stopInternal(emitLog: false)
+        }
+
+        self.clarifyHotkey = hotkey
+        emit("[config] clarify hotkey set to \(hotkey.display)")
 
         if wasRunning {
             start()
