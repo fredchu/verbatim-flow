@@ -26,4 +26,17 @@ final class DictationVocabularyTests: XCTestCase {
             XCTFail("Expected contextual policy for Tana")
         }
     }
+
+    func testExactCaseTargetSupportsBrandNormalization() {
+        XCTAssertEqual(DictationVocabulary.exactCaseTarget(for: "claude"), "Claude")
+        XCTAssertEqual(DictationVocabulary.exactCaseTarget(for: "youtube"), "YouTube")
+        XCTAssertNil(DictationVocabulary.exactCaseTarget(for: "workflow"))
+    }
+
+    func testAliasMatchSupportsContextualOverrides() {
+        let alias = DictationVocabulary.aliasMatch(for: "GIT")
+
+        XCTAssertEqual(alias?.target, "GPT")
+        XCTAssertNotNil(alias)
+    }
 }

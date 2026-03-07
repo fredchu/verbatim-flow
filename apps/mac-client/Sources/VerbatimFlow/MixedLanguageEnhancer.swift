@@ -36,9 +36,17 @@ enum MixedLanguageEnhancer {
             output = phraseCorrections.text
             appliedRules.append(contentsOf: phraseCorrections.appliedRules)
 
+            let aliasCorrections = applyExplicitAliasCorrections(text: output, aliases: DictationVocabulary.substringAliases())
+            output = aliasCorrections.text
+            appliedRules.append(contentsOf: aliasCorrections.appliedRules)
+
             let englishCorrections = applyEnglishTokenCorrections(text: output, candidates: canonicalTerms)
             output = englishCorrections.text
             appliedRules.append(contentsOf: englishCorrections.appliedRules)
+        } else {
+            let aliasCorrections = applyExplicitAliasCorrections(text: output, aliases: DictationVocabulary.substringAliases())
+            output = aliasCorrections.text
+            appliedRules.append(contentsOf: aliasCorrections.appliedRules)
         }
 
         let hanCorrections = applyHanTokenCorrections(text: output, candidates: canonicalTerms)
@@ -139,6 +147,26 @@ enum MixedLanguageEnhancer {
             let token = String(output[tokenRange])
             let normalized = token.lowercased()
 
+            if let alias = DictationVocabulary.aliasMatch(for: token) {
+                guard shouldApply(policy: alias.correctionPolicy, in: output, replacing: tokenRange) else {
+                    continue
+                }
+
+                if token != alias.target {
+                    output.replaceSubrange(tokenRange, with: alias.target)
+                    appliedRules.append("\(token) -> \(alias.target)")
+                }
+                continue
+            }
+
+            if let exactTarget = DictationVocabulary.exactCaseTarget(for: token),
+               exactTarget != token,
+               shouldApplyCandidate(exactTarget, in: output, replacing: tokenRange) {
+                output.replaceSubrange(tokenRange, with: exactTarget)
+                appliedRules.append("\(token) -> \(exactTarget)")
+                continue
+            }
+
             guard candidates[normalized] == nil else {
                 continue
             }
@@ -157,6 +185,46 @@ enum MixedLanguageEnhancer {
         }
 
         return MixedLanguageEnhancementResult(text: output, appliedRules: appliedRules.reversed())
+    }
+
+    private static func applyExplicitAliasCorrections(
+        text: String,
+        aliases: [DictationVocabulary.AliasProfile]
+    ) -> MixedLanguageEnhancementResult {
+        guard !aliases.isEmpty else {
+            return MixedLanguageEnhancementResult(text: text, appliedRules: [])
+        }
+
+        var output = text
+        var appliedRules: [String] = []
+        let orderedAliases = aliases.sorted { $0.source.count > $1.source.count }
+
+        for alias in orderedAliases {
+            var matches: [Range<String.Index>] = []
+            var searchStart = output.startIndex
+
+            while searchStart < output.endIndex,
+                  let range = output.range(of: alias.source, options: [.caseInsensitive], range: searchStart..<output.endIndex) {
+                matches.append(range)
+                searchStart = range.upperBound
+            }
+
+            for range in matches.reversed() {
+                guard shouldApply(policy: alias.correctionPolicy, in: output, replacing: range) else {
+                    continue
+                }
+
+                let original = String(output[range])
+                guard original != alias.target else {
+                    continue
+                }
+
+                output.replaceSubrange(range, with: alias.target)
+                appliedRules.append("\(original) -> \(alias.target)")
+            }
+        }
+
+        return MixedLanguageEnhancementResult(text: output, appliedRules: appliedRules)
     }
 
     private static func applyHanTokenCorrections(text: String, candidates: [String: String]) -> MixedLanguageEnhancementResult {
@@ -250,7 +318,15 @@ enum MixedLanguageEnhancer {
         in text: String,
         replacing range: Range<String.Index>
     ) -> Bool {
-        switch DictationVocabulary.correctionPolicy(for: candidate) {
+        shouldApply(policy: DictationVocabulary.correctionPolicy(for: candidate), in: text, replacing: range)
+    }
+
+    private static func shouldApply(
+        policy: DictationVocabulary.CorrectionPolicy,
+        in text: String,
+        replacing range: Range<String.Index>
+    ) -> Bool {
+        switch policy {
         case .always:
             return true
         case .contextual(let keywords):

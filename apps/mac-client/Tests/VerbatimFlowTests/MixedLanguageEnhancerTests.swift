@@ -45,4 +45,48 @@ final class MixedLanguageEnhancerTests: XCTestCase {
         XCTAssertEqual(result.text, "我把 Tana 里的笔记同步过来了")
         XCTAssertEqual(result.appliedRules, ["ta na -> Tana"])
     }
+
+    func testExactCaseNormalizationForBrandTerms() {
+        let result = MixedLanguageEnhancer.apply(
+            text: "我现在用 claude 和 gpt 测试 openai",
+            localeIdentifier: "zh-CN",
+            vocabularyHints: ["Claude", "GPT", "OpenAI"]
+        )
+
+        XCTAssertEqual(result.text, "我现在用 Claude 和 GPT 测试 OpenAI")
+        XCTAssertEqual(result.appliedRules, ["claude -> Claude", "gpt -> GPT", "openai -> OpenAI"])
+    }
+
+    func testAIContextCorrectsGeminiAlias() {
+        let result = MixedLanguageEnhancer.apply(
+            text: "Claude 和 GPT 都更理性，而金版呢会偏销售风格",
+            localeIdentifier: "zh-CN",
+            vocabularyHints: ["Claude", "GPT", "Gemini"]
+        )
+
+        XCTAssertEqual(result.text, "Claude 和 GPT 都更理性，而Gemini呢会偏销售风格")
+        XCTAssertEqual(result.appliedRules, ["金版 -> Gemini"])
+    }
+
+    func testAIContextCorrectsGITToGPT() {
+        let result = MixedLanguageEnhancer.apply(
+            text: "这个 GIT 模型更像理工男",
+            localeIdentifier: "zh-CN",
+            vocabularyHints: ["GPT", "Git"]
+        )
+
+        XCTAssertEqual(result.text, "这个 GPT 模型更像理工男")
+        XCTAssertEqual(result.appliedRules, ["GIT -> GPT"])
+    }
+
+    func testGitStaysGitOutsideAIContext() {
+        let result = MixedLanguageEnhancer.apply(
+            text: "这个 Git 仓库我已经 push 到 GitHub 了",
+            localeIdentifier: "zh-CN",
+            vocabularyHints: ["Git", "GitHub", "GPT"]
+        )
+
+        XCTAssertEqual(result.text, "这个 Git 仓库我已经 push 到 GitHub 了")
+        XCTAssertEqual(result.appliedRules, [])
+    }
 }

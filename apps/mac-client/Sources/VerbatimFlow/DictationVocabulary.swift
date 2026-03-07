@@ -12,6 +12,41 @@ enum DictationVocabulary {
         let correctionPolicy: CorrectionPolicy
     }
 
+    struct AliasProfile: Equatable {
+        let source: String
+        let target: String
+        let correctionPolicy: CorrectionPolicy
+    }
+
+    private static let aiContextKeywords: [String] = [
+        "ai", "llm", "模型", "大模型", "语音", "转写", "识别", "术语", "工具", "应用", "app",
+        "claude", "gpt", "openai", "anthropic", "gemini", "prompt"
+    ]
+
+    private static let exactCaseTerms: [String] = [
+        "Claude", "GPT", "GPT-5", "OpenAI", "Anthropic", "Gemini", "YouTube", "iTerm2",
+        "GitHub", "Whisper", "VerbatimFlow", "Raycast", "Wispr", "Tabless", "Typeless", "Mac"
+    ]
+
+    private static let aliasProfiles: [AliasProfile] = [
+        AliasProfile(source: "claude", target: "Claude", correctionPolicy: .always),
+        AliasProfile(source: "gpt", target: "GPT", correctionPolicy: .always),
+        AliasProfile(source: "openai", target: "OpenAI", correctionPolicy: .always),
+        AliasProfile(source: "anthropic", target: "Anthropic", correctionPolicy: .always),
+        AliasProfile(source: "gemini", target: "Gemini", correctionPolicy: .always),
+        AliasProfile(source: "youtube", target: "YouTube", correctionPolicy: .always),
+        AliasProfile(source: "iterm2", target: "iTerm2", correctionPolicy: .always),
+        AliasProfile(source: "克劳德", target: "Claude", correctionPolicy: .contextual(keywords: aiContextKeywords)),
+        AliasProfile(source: "扣劳德", target: "Claude", correctionPolicy: .contextual(keywords: aiContextKeywords)),
+        AliasProfile(source: "鸡皮替", target: "GPT", correctionPolicy: .contextual(keywords: aiContextKeywords)),
+        AliasProfile(source: "机皮替", target: "GPT", correctionPolicy: .contextual(keywords: aiContextKeywords)),
+        AliasProfile(source: "吉米尼", target: "Gemini", correctionPolicy: .contextual(keywords: aiContextKeywords)),
+        AliasProfile(source: "杰米尼", target: "Gemini", correctionPolicy: .contextual(keywords: aiContextKeywords)),
+        AliasProfile(source: "机迷你", target: "Gemini", correctionPolicy: .contextual(keywords: aiContextKeywords)),
+        AliasProfile(source: "金版", target: "Gemini", correctionPolicy: .contextual(keywords: aiContextKeywords)),
+        AliasProfile(source: "GIT", target: "GPT", correctionPolicy: .contextual(keywords: aiContextKeywords))
+    ]
+
     private static let termProfiles: [TermProfile] = [
         TermProfile(term: "Commit", includeInASRHints: true, correctionPolicy: .always),
         TermProfile(term: "Branch", includeInASRHints: true, correctionPolicy: .always),
@@ -92,10 +127,45 @@ enum DictationVocabulary {
         return .always
     }
 
+    static func exactCaseTarget(for token: String) -> String? {
+        let key = normalizedTermKey(token)
+        for term in exactCaseTerms {
+            if normalizedTermKey(term) == key {
+                return term
+            }
+        }
+        return nil
+    }
+
+    static func aliasMatch(for token: String) -> AliasProfile? {
+        let key = normalizedTokenKey(token)
+        for alias in aliasProfiles {
+            if normalizedTokenKey(alias.source) == key {
+                return alias
+            }
+        }
+        return nil
+    }
+
+    static func substringAliases() -> [AliasProfile] {
+        aliasProfiles.filter { containsHan($0.source) }
+    }
+
     private static func normalizedTermKey(_ term: String) -> String {
         term
             .lowercased()
             .replacingOccurrences(of: "[^a-z0-9]", with: "", options: .regularExpression)
+    }
+
+    private static func normalizedTokenKey(_ token: String) -> String {
+        token
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .lowercased()
+            .replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
+    }
+
+    private static func containsHan(_ text: String) -> Bool {
+        text.range(of: "\\p{Han}", options: .regularExpression) != nil
     }
 
     private static func deduplicated(_ values: [String]) -> [String] {
