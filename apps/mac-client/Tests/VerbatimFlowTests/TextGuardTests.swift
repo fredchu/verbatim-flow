@@ -29,4 +29,18 @@ final class TextGuardTests: XCTestCase {
         XCTAssertEqual(result.text, "访问 https://axtonliu.ai/test，谢谢。")
         XCTAssertFalse(result.fellBackToRaw)
     }
+
+    func testFormatOnlyAddsLightweightChinesePunctuationWhenMissing() {
+        let guardEngine = TextGuard(mode: .formatOnly)
+        let result = guardEngine.apply(raw: "你看现在这个头的标点又没有了")
+        XCTAssertEqual(result.text, "你看，现在这个头的标点又没有了。")
+        XCTAssertFalse(result.fellBackToRaw)
+    }
+
+    func testFormatOnlyDoesNotForcePeriodOnShortChineseFragment() {
+        let guardEngine = TextGuard(mode: .formatOnly)
+        let result = guardEngine.apply(raw: "计划今天要发的")
+        XCTAssertEqual(result.text, "计划今天要发的")
+        XCTAssertFalse(result.fellBackToRaw)
+    }
 }

@@ -44,6 +44,7 @@ struct TextGuard {
         if shouldPreferFullWidthPunctuation(output) {
             output = convertASCIIToFullWidthPunctuation(output)
         }
+        output = injectLightweightChinesePunctuation(output)
         output = normalizeASCIIPunctuationSpacing(output)
         output = replace(output, pattern: "([，。！？；：])(\\s+)", template: "$1")
         output = replace(output, pattern: "\\s+([)\\]}>])", template: "$1")
@@ -236,6 +237,44 @@ struct TextGuard {
         return output
     }
 
+    private func injectLightweightChinesePunctuation(_ text: String) -> String {
+        guard shouldPreferFullWidthPunctuation(text) else {
+            return text
+        }
+
+        var output = text
+
+        let prefixPatterns: [(String, String)] = [
+            (#"^(好)(?=(继续|现在|那|我|你|我们|咱们|开始|可以|来|先))"#, "$1，"),
+            (#"^(那)(?=(我|你|我们|咱们|现在|就|先|再))"#, "$1，"),
+            (#"^(你看|然后|所以|但是|不过|另外|当然|其实|比如|那么|首先)(?=[\p{Han}A-Za-z0-9])"#, "$1，")
+        ]
+
+        for (pattern, template) in prefixPatterns {
+            output = replace(output, pattern: pattern, template: template)
+        }
+
+        return ensureChineseTerminalPunctuation(output)
+    }
+
+    private func ensureChineseTerminalPunctuation(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return trimmed
+        }
+
+        if let last = trimmed.last, "，。！？；：,.!?;:".contains(last) {
+            return trimmed
+        }
+
+        let hanCount = trimmed.unicodeScalars.filter(\.properties.isIdeographic).count
+        guard hanCount >= 8 else {
+            return trimmed
+        }
+
+        return trimmed + "。"
+    }
+
     private func shouldConvertToFullWidth(
         _ punctuation: Character,
         previous: Character?,
@@ -353,28 +392,24 @@ struct TextGuard {
     }
 
     private func semanticallyEquivalent(lhs: String, rhs: String) -> Bool {
-        canonicalTokens(lhs) == canonicalTokens(rhs)
+        canonicalComparableText(lhs) == canonicalComparableText(rhs)
     }
 
-    private func canonicalTokens(_ text: String) -> [String] {
+    private func canonicalComparableText(_ text: String) -> String {
         let punctuation = CharacterSet.punctuationCharacters
             .union(.symbols)
-            .union(.whitespacesAndNewlines)
 
         var normalized = ""
         normalized.reserveCapacity(text.count)
 
         for scalar in text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current).unicodeScalars {
-            if punctuation.contains(scalar) {
-                normalized.append(" ")
+            if CharacterSet.whitespacesAndNewlines.contains(scalar) || punctuation.contains(scalar) {
+                continue
             } else {
                 normalized.unicodeScalars.append(scalar)
             }
         }
-
         return normalized
-            .split(whereSeparator: { $0.isWhitespace })
-            .map(String.init)
     }
 
     private func replace(_ input: String, pattern: String, template: String) -> String {

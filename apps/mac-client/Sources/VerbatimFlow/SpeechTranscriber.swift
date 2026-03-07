@@ -136,6 +136,12 @@ final class SpeechTranscriber {
             let model = entry.openAIModel?.rawValue
             let languageCode = Self.whisperLanguageCode(from: entry.localeIdentifier)
             let timeout = Self.resolvedOpenAITranscriptionTimeoutSeconds(isSecondary: false)
+            let terminologyRules = TerminologyDictionary.loadRules()
+            let vocabularyHints = DictationVocabulary.fuzzyCorrectionTerms(customHints: terminologyRules.hints)
+            let prompt = Self.buildOpenAITranscriptionPrompt(
+                localeIdentifier: entry.localeIdentifier,
+                terminologyHints: vocabularyHints
+            )
             transcript = try await withCheckedThrowingContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
                     do {
@@ -143,6 +149,7 @@ final class SpeechTranscriber {
                             audioURL: entry.audioFileURL,
                             languageCode: languageCode,
                             modelOverride: model,
+                            prompt: prompt,
                             timeout: timeout
                         )
                         continuation.resume(returning: text)
@@ -328,6 +335,12 @@ final class SpeechTranscriber {
             environment: env,
             fileValues: fileValues
         )
+        let terminologyRules = TerminologyDictionary.loadRules()
+        let vocabularyHints = DictationVocabulary.fuzzyCorrectionTerms(customHints: terminologyRules.hints)
+        let transcriptionPrompt = Self.buildOpenAITranscriptionPrompt(
+            localeIdentifier: localeIdentifier,
+            terminologyHints: vocabularyHints
+        )
         let primaryTimeout = Self.resolvedOpenAITranscriptionTimeoutSeconds(isSecondary: false)
 
         do {
@@ -339,6 +352,7 @@ final class SpeechTranscriber {
                 audioURL: recordingURL,
                 languageCode: languageCode,
                 modelOverride: selectedModel,
+                prompt: transcriptionPrompt,
                 timeout: primaryTimeout
             )
             RuntimeLogger.log(
@@ -349,8 +363,6 @@ final class SpeechTranscriber {
                 environment: env,
                 fileValues: fileValues
             )
-            let customRules = TerminologyDictionary.loadRules()
-            let vocabularyHints = DictationVocabulary.fuzzyCorrectionTerms(customHints: customRules.hints)
 
             var finalTranscript = primaryTranscript
             if autoConfig.enabled {
@@ -377,6 +389,7 @@ final class SpeechTranscriber {
                             audioURL: recordingURL,
                             languageCode: languageCode,
                             modelOverride: autoConfig.secondaryModel,
+                            prompt: transcriptionPrompt,
                             timeout: secondaryTimeout
                         )
                         RuntimeLogger.log(
@@ -529,6 +542,7 @@ final class SpeechTranscriber {
         audioURL: URL,
         languageCode: String?,
         modelOverride: String?,
+        prompt: String?,
         timeout: TimeInterval
     ) throws -> String {
         let env = ProcessInfo.processInfo.environment
@@ -564,6 +578,9 @@ final class SpeechTranscriber {
         appendMultipartField(name: "response_format", value: "json", boundary: boundary, to: &body)
         if let languageCode, !languageCode.isEmpty {
             appendMultipartField(name: "language", value: languageCode, boundary: boundary, to: &body)
+        }
+        if let prompt, !prompt.isEmpty {
+            appendMultipartField(name: "prompt", value: prompt, boundary: boundary, to: &body)
         }
         appendMultipartFile(
             name: "file",
@@ -618,6 +635,7 @@ final class SpeechTranscriber {
         audioURL: URL,
         languageCode: String?,
         modelOverride: String?,
+        prompt: String?,
         timeout: TimeInterval
     ) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
@@ -627,6 +645,7 @@ final class SpeechTranscriber {
                         audioURL: audioURL,
                         languageCode: languageCode,
                         modelOverride: modelOverride,
+                        prompt: prompt,
                         timeout: timeout
                     )
                     continuation.resume(returning: text)
@@ -696,6 +715,34 @@ final class SpeechTranscriber {
         default:
             return false
         }
+    }
+
+    private nonisolated static func buildOpenAITranscriptionPrompt(
+        localeIdentifier: String,
+        terminologyHints: [String]
+    ) -> String? {
+        var parts: [String] = ["Transcribe faithfully."]
+
+        if localeIdentifier.lowercased().hasPrefix("zh") {
+            parts.append("Use natural Chinese punctuation and prefer full-width punctuation in Chinese text.")
+            parts.append("Preserve English technical terms in mixed Chinese-English dictation.")
+        } else {
+            parts.append("Preserve spoken punctuation and technical terms exactly when possible.")
+        }
+
+        let normalizedHints = terminologyHints
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if !normalizedHints.isEmpty {
+            parts.append("Preferred terms: \(normalizedHints.prefix(18).joined(separator: ", "))")
+        }
+
+        let prompt = parts.joined(separator: " ")
+        guard !prompt.isEmpty else {
+            return nil
+        }
+
+        return prompt.count > 480 ? String(prompt.prefix(480)) : prompt
     }
 
     private nonisolated static func performRequest(_ request: URLRequest, timeout: TimeInterval) throws -> (Data, Int) {
