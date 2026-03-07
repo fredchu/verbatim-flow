@@ -43,4 +43,35 @@ final class TextGuardTests: XCTestCase {
         XCTAssertEqual(result.text, "计划今天要发的")
         XCTAssertFalse(result.fellBackToRaw)
     }
+
+    func testFormatOnlyAddsLightweightParagraphsForLongChineseDictation() {
+        let guardEngine = TextGuard(mode: .formatOnly)
+        let result = guardEngine.apply(
+            raw: "好，我已经把这篇文章存到项目目录里了。然后这个对比结果我已经做了截图保留。其实这也很好地体现了我的一个观点，就是 Claude 比较均衡客观，而且文字功底更好。GPT 更像理工男，更注重严谨的逻辑。"
+        )
+
+        XCTAssertEqual(
+            result.text,
+            "好，我已经把这篇文章存到项目目录里了。然后这个对比结果我已经做了截图保留。\n\n其实这也很好地体现了我的一个观点，就是 Claude 比较均衡客观，而且文字功底更好。GPT 更像理工男，更注重严谨的逻辑。"
+        )
+        XCTAssertFalse(result.fellBackToRaw)
+    }
+
+    func testFormatOnlyKeepsShortChineseTwoSentenceTextInSingleParagraph() {
+        let guardEngine = TextGuard(mode: .formatOnly)
+        let result = guardEngine.apply(raw: "我已经提交了。请你看一下。")
+
+        XCTAssertEqual(result.text, "我已经提交了。请你看一下。")
+        XCTAssertFalse(result.fellBackToRaw)
+    }
+
+    func testClarifyPreprocessingDoesNotInsertParagraphBreaks() {
+        let guardEngine = TextGuard(mode: .clarify)
+        let result = guardEngine.apply(
+            raw: "好，我已经把这篇文章存到项目目录里了。然后这个对比结果我已经做了截图保留。其实这也很好地体现了我的一个观点。"
+        )
+
+        XCTAssertFalse(result.text.contains("\n\n"))
+        XCTAssertFalse(result.fellBackToRaw)
+    }
 }

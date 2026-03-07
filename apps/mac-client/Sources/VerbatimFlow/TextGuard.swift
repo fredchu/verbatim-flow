@@ -15,6 +15,10 @@ struct TextGuard {
         ";": "；",
         ":": "："
     ]
+    private let paragraphLeadingMarkers: [String] = [
+        "然后", "另外", "还有", "此外", "同时", "不过", "但是", "所以", "因此",
+        "其实", "另外呢", "还有呢", "首先", "其次", "最后", "总之"
+    ]
 
     func apply(raw: String) -> GuardedText {
         let trimmedRaw = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -26,7 +30,7 @@ struct TextGuard {
         case .raw:
             return GuardedText(text: trimmedRaw, fellBackToRaw: false)
         case .formatOnly:
-            let formatted = formatOnlyNormalize(trimmedRaw)
+            let formatted = formatOnlyNormalize(trimmedRaw, enableParagraphing: true)
             if semanticallyEquivalent(lhs: trimmedRaw, rhs: formatted) {
                 return GuardedText(text: formatted, fellBackToRaw: false)
             }
@@ -37,7 +41,7 @@ struct TextGuard {
         }
     }
 
-    private func formatOnlyNormalize(_ text: String) -> String {
+    private func formatOnlyNormalize(_ text: String, enableParagraphing: Bool) -> String {
         var output = text
         output = replace(output, pattern: "\\s+", template: " ")
         output = replace(output, pattern: "\\s+([,\\.!?;:，。！？；：])", template: "$1")
@@ -49,6 +53,9 @@ struct TextGuard {
         output = replace(output, pattern: "([，。！？；：])(\\s+)", template: "$1")
         output = replace(output, pattern: "\\s+([)\\]}>])", template: "$1")
         output = replace(output, pattern: "([(\\[<{])\\s+", template: "$1")
+        if enableParagraphing {
+            output = applyLightweightParagraphing(output)
+        }
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -58,7 +65,7 @@ struct TextGuard {
         output = collapseStutters(output)
         output = collapseImmediateDuplicateWords(output)
         output = collapseDuplicateWordPhrases(output)
-        output = formatOnlyNormalize(output)
+        output = formatOnlyNormalize(output, enableParagraphing: false)
         output = ensureTerminalPunctuation(output)
         return output
     }
@@ -273,6 +280,111 @@ struct TextGuard {
         }
 
         return trimmed + "。"
+    }
+
+    private func applyLightweightParagraphing(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard containsHanCharacter(trimmed) else {
+            return trimmed
+        }
+
+        guard !trimmed.contains("\n"), trimmed.count >= 48 else {
+            return trimmed
+        }
+
+        let sentences = splitSentences(trimmed)
+        guard sentences.count >= 3 else {
+            return trimmed
+        }
+
+        var paragraphs: [[String]] = []
+        var current: [String] = []
+        var currentLength = 0
+
+        for sentence in sentences {
+            let sentenceLength = sentence.count
+
+            if !current.isEmpty,
+               shouldStartNewParagraph(
+                nextSentence: sentence,
+                currentSentenceCount: current.count,
+                currentLength: currentLength
+               ) {
+                paragraphs.append(current)
+                current = []
+                currentLength = 0
+            }
+
+            current.append(sentence)
+            currentLength += sentenceLength
+        }
+
+        if !current.isEmpty {
+            paragraphs.append(current)
+        }
+
+        guard paragraphs.count >= 2 else {
+            return trimmed
+        }
+
+        return paragraphs
+            .map { $0.joined() }
+            .joined(separator: "\n\n")
+    }
+
+    private func splitSentences(_ text: String) -> [String] {
+        guard !text.isEmpty else {
+            return []
+        }
+
+        var sentences: [String] = []
+        var current = ""
+        current.reserveCapacity(text.count)
+
+        for character in text {
+            current.append(character)
+            if "。！？!?；;".contains(character) {
+                let trimmed = current.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    sentences.append(trimmed)
+                }
+                current = ""
+            }
+        }
+
+        let remainder = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !remainder.isEmpty {
+            sentences.append(remainder)
+        }
+
+        return sentences
+    }
+
+    private func shouldStartNewParagraph(
+        nextSentence: String,
+        currentSentenceCount: Int,
+        currentLength: Int
+    ) -> Bool {
+        guard currentSentenceCount > 0 else {
+            return false
+        }
+
+        let trimmedNext = nextSentence.trimmingCharacters(in: .whitespacesAndNewlines)
+        let startsWithMarker = paragraphLeadingMarkers.contains { trimmedNext.hasPrefix($0) }
+
+        if startsWithMarker && currentLength >= 24 {
+            return true
+        }
+
+        if currentSentenceCount >= 2 && currentLength >= 36 {
+            return true
+        }
+
+        if currentLength >= 64 {
+            return true
+        }
+
+        return false
     }
 
     private func shouldConvertToFullWidth(
