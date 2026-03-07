@@ -84,6 +84,10 @@ enum MixedLanguageEnhancer {
                         continue
                     }
 
+                    guard shouldApplyCandidate(candidate, in: output, replacing: replacementRange) else {
+                        continue
+                    }
+
                     guard canonicalPhraseKey(original) != canonicalPhraseKey(candidate) || original != candidate else {
                         continue
                     }
@@ -143,6 +147,10 @@ enum MixedLanguageEnhancer {
                 continue
             }
 
+            guard shouldApplyCandidate(candidate, in: output, replacing: tokenRange) else {
+                continue
+            }
+
             let replacement = adaptCase(reference: token, candidate: candidate)
             output.replaceSubrange(tokenRange, with: replacement)
             appliedRules.append("\(token) -> \(replacement)")
@@ -179,6 +187,10 @@ enum MixedLanguageEnhancer {
             guard latin.count >= 4 else { continue }
 
             guard let candidate = bestPhoneticCandidate(for: latin, candidates: phoneticTerms) else {
+                continue
+            }
+
+            guard shouldApplyCandidate(candidate, in: output, replacing: tokenRange) else {
                 continue
             }
 
@@ -231,6 +243,32 @@ enum MixedLanguageEnhancer {
         text
             .lowercased()
             .replacingOccurrences(of: "[^a-z0-9]", with: "", options: .regularExpression)
+    }
+
+    private static func shouldApplyCandidate(
+        _ candidate: String,
+        in text: String,
+        replacing range: Range<String.Index>
+    ) -> Bool {
+        switch DictationVocabulary.correctionPolicy(for: candidate) {
+        case .always:
+            return true
+        case .contextual(let keywords):
+            let context = surroundingContext(in: text, around: range, radius: 18)
+                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                .lowercased()
+            return keywords.contains { context.contains($0.lowercased()) }
+        }
+    }
+
+    private static func surroundingContext(
+        in text: String,
+        around range: Range<String.Index>,
+        radius: Int
+    ) -> String {
+        let lowerBound = text.index(range.lowerBound, offsetBy: -radius, limitedBy: text.startIndex) ?? text.startIndex
+        let upperBound = text.index(range.upperBound, offsetBy: radius, limitedBy: text.endIndex) ?? text.endIndex
+        return String(text[lowerBound..<upperBound])
     }
 
     private static func normalizedPhoneticTerms(from candidates: [String: String]) -> [String: String] {

@@ -137,7 +137,7 @@ final class SpeechTranscriber {
             let languageCode = Self.whisperLanguageCode(from: entry.localeIdentifier)
             let timeout = Self.resolvedOpenAITranscriptionTimeoutSeconds(isSecondary: false)
             let terminologyRules = TerminologyDictionary.loadRules()
-            let vocabularyHints = DictationVocabulary.fuzzyCorrectionTerms(customHints: terminologyRules.hints)
+            let vocabularyHints = DictationVocabulary.transcriptionPromptTerms(customHints: terminologyRules.hints)
             let prompt = Self.buildOpenAITranscriptionPrompt(
                 localeIdentifier: entry.localeIdentifier,
                 terminologyHints: vocabularyHints
@@ -336,7 +336,7 @@ final class SpeechTranscriber {
             fileValues: fileValues
         )
         let terminologyRules = TerminologyDictionary.loadRules()
-        let vocabularyHints = DictationVocabulary.fuzzyCorrectionTerms(customHints: terminologyRules.hints)
+        let vocabularyHints = DictationVocabulary.transcriptionPromptTerms(customHints: terminologyRules.hints)
         let transcriptionPrompt = Self.buildOpenAITranscriptionPrompt(
             localeIdentifier: localeIdentifier,
             terminologyHints: vocabularyHints
