@@ -171,10 +171,8 @@ final class SpeechTranscriber {
             }
         case .qwen:
             let qwenModelId = entry.qwenModelRawValue ?? QwenModel.small.rawValue
-            // NOTE: Uses current languageIsAutoDetect, not the value at recording time.
-            // FailedRecordingEntry doesn't persist the auto-detect flag; mismatch is
-            // unlikely in practice (requires Qwen failure + language mode switch before retry).
-            let languageCode = Self.qwenLanguageParam(from: entry.localeIdentifier, isAutoDetect: languageIsAutoDetect)
+            let entryAutoDetect = entry.languageIsAutoDetect ?? languageIsAutoDetect
+            let languageCode = Self.qwenLanguageParam(from: entry.localeIdentifier, isAutoDetect: entryAutoDetect)
             let outputLocale: String? = (languageCode == nil) ? entry.localeIdentifier : nil
             transcript = try await withCheckedThrowingContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
@@ -193,7 +191,8 @@ final class SpeechTranscriber {
             }
         case .mlxWhisper:
             let mlxWhisperModelId = (entry.mlxWhisperModel ?? .whisperLargeV3).rawValue
-            let languageCode = Self.mlxWhisperLanguageParam(from: entry.localeIdentifier, isAutoDetect: languageIsAutoDetect)
+            let entryAutoDetect = entry.languageIsAutoDetect ?? languageIsAutoDetect
+            let languageCode = Self.mlxWhisperLanguageParam(from: entry.localeIdentifier, isAutoDetect: entryAutoDetect)
             let outputLocale: String? = (languageCode == nil) ? entry.localeIdentifier : nil
             transcript = try await withCheckedThrowingContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
@@ -583,6 +582,7 @@ final class SpeechTranscriber {
             sourceAudioURL: audioURL,
             recognitionEngine: recognitionEngine,
             localeIdentifier: localeIdentifier,
+            languageIsAutoDetect: languageIsAutoDetect,
             whisperModel: whisperModel,
             whisperComputeType: whisperComputeType,
             openAIModel: openAIModel,
