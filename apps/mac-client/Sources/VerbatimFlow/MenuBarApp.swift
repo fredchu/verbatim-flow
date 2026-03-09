@@ -145,6 +145,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private let whisperModelInfoItem: NSMenuItem
     private let openAIModelInfoItem: NSMenuItem
     private let hotkeyMenuItem = NSMenuItem(title: "Hotkey", action: nil, keyEquivalent: "")
+    private let clarifyHotkeyMenuItem = NSMenuItem(title: "Clarify Hotkey", action: nil, keyEquivalent: "")
     private lazy var hotkeyCtrlShiftSpaceItem = NSMenuItem(
         title: "Ctrl+Shift+Space",
         action: #selector(setHotkeyCtrlShiftSpace),
@@ -158,6 +159,21 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private lazy var hotkeyCmdShiftSpaceItem = NSMenuItem(
         title: "Cmd+Shift+Space",
         action: #selector(setHotkeyCmdShiftSpace),
+        keyEquivalent: ""
+    )
+    private lazy var clarifyHotkeyCtrlShiftSpaceItem = NSMenuItem(
+        title: "Ctrl+Shift+Space",
+        action: #selector(setClarifyHotkeyCtrlShiftSpace),
+        keyEquivalent: ""
+    )
+    private lazy var clarifyHotkeyShiftOptionItem = NSMenuItem(
+        title: "Shift+Option",
+        action: #selector(setClarifyHotkeyShiftOption),
+        keyEquivalent: ""
+    )
+    private lazy var clarifyHotkeyCmdShiftSpaceItem = NSMenuItem(
+        title: "Cmd+Shift+Space",
+        action: #selector(setClarifyHotkeyCmdShiftSpace),
         keyEquivalent: ""
     )
 
@@ -186,6 +202,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     private let lastEventItem = NSMenuItem(title: "Last event: -", action: nil, keyEquivalent: "")
     private let permissionStatusItem = NSMenuItem(title: "Permissions: Checking...", action: nil, keyEquivalent: "")
+    private let permissionsMenuItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
 
     private let recentMenuItem = NSMenuItem(title: "Recent transcripts", action: nil, keyEquivalent: "")
     private let recentSubmenu = NSMenu(title: "Recent transcripts")
@@ -271,6 +288,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private var permissionRequestFallbackWorkItem: DispatchWorkItem?
     private var shouldRestoreAccessoryAfterPermissionRequest = false
     private var aboutWindowController: NSWindowController?
+    private let initialClarifyHotkey: Hotkey
     private let transcriptDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -286,6 +304,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         let qwenModel = MenuBarApp.resolveQwenModel(config: config, preferences: preferences)
         let mlxWhisperModel = MenuBarApp.resolveMlxWhisperModel(config: config, preferences: preferences)
         let hotkey = MenuBarApp.resolveHotkey(config: config, preferences: preferences)
+        let clarifyHotkey = MenuBarApp.resolveClarifyHotkey(preferences: preferences)
         let languageSelection = MenuBarApp.resolveLanguageSelection(config: config, preferences: preferences)
         let localeIdentifier = MenuBarApp.localeIdentifier(forSelection: languageSelection)
 
@@ -304,11 +323,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         )
         self.preferences = preferences
         self.languageSelection = languageSelection
+        self.initialClarifyHotkey = clarifyHotkey
         self.engineInfoItem = NSMenuItem(title: "Engine: \(recognitionEngine.displayName)", action: nil, keyEquivalent: "")
         self.whisperModelInfoItem = NSMenuItem(title: "Whisper Model: \(whisperModel.displayName)", action: nil, keyEquivalent: "")
         self.openAIModelInfoItem = NSMenuItem(title: "OpenAI Model: \(openAIModel.displayName)", action: nil, keyEquivalent: "")
         self.hotkeyInfoItem = NSMenuItem(title: "Hotkey: \(hotkey.display)", action: nil, keyEquivalent: "")
-        self.clarifyHotkeyInfoItem = NSMenuItem(title: "Clarify Hotkey: Cmd+Shift+Space", action: nil, keyEquivalent: "")
+        self.clarifyHotkeyInfoItem = NSMenuItem(title: "Clarify Hotkey: \(clarifyHotkey.display)", action: nil, keyEquivalent: "")
         self.languageInfoItem = NSMenuItem(title: "Language: \(localeIdentifier)", action: nil, keyEquivalent: "")
         super.init()
     }
@@ -320,6 +340,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         setupMenu()
         bindControllerCallbacks()
 
+        controller.setClarifyHotkey(initialClarifyHotkey)
         controller.start()
         refreshModeChecks()
         refreshEngineChecks()
@@ -415,12 +436,21 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         hotkeyCtrlShiftSpaceItem.target = self
         hotkeyShiftOptionItem.target = self
         hotkeyCmdShiftSpaceItem.target = self
+        clarifyHotkeyCtrlShiftSpaceItem.target = self
+        clarifyHotkeyShiftOptionItem.target = self
+        clarifyHotkeyCmdShiftSpaceItem.target = self
 
         let hotkeySubmenu = NSMenu(title: "Hotkey")
         hotkeySubmenu.addItem(hotkeyCtrlShiftSpaceItem)
         hotkeySubmenu.addItem(hotkeyShiftOptionItem)
         hotkeySubmenu.addItem(hotkeyCmdShiftSpaceItem)
         hotkeyMenuItem.submenu = hotkeySubmenu
+
+        let clarifyHotkeySubmenu = NSMenu(title: "Clarify Hotkey")
+        clarifyHotkeySubmenu.addItem(clarifyHotkeyCtrlShiftSpaceItem)
+        clarifyHotkeySubmenu.addItem(clarifyHotkeyShiftOptionItem)
+        clarifyHotkeySubmenu.addItem(clarifyHotkeyCmdShiftSpaceItem)
+        clarifyHotkeyMenuItem.submenu = clarifyHotkeySubmenu
 
         languageSystemItem.target = self
         languageZhHansItem.target = self
@@ -450,6 +480,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         llmSettingsItem.target = self
         aboutMenuItem.target = self
 
+        let permissionsSubmenu = NSMenu(title: "Permissions")
+        permissionsSubmenu.addItem(requestPermissionsItem)
+        permissionsSubmenu.addItem(openAccessibilityItem)
+        permissionsSubmenu.addItem(openInputMonitoringItem)
+        permissionsSubmenu.addItem(openMicItem)
+        permissionsSubmenu.addItem(openSpeechItem)
+        permissionsMenuItem.submenu = permissionsSubmenu
+
         let settingsSubmenu = NSMenu(title: "Settings")
         settingsSubmenu.addItem(modeMenuItem)
         settingsSubmenu.addItem(engineMenuItem)
@@ -458,6 +496,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         settingsSubmenu.addItem(qwenModelMenuItem)
         settingsSubmenu.addItem(mlxWhisperModelMenuItem)
         settingsSubmenu.addItem(hotkeyMenuItem)
+        settingsSubmenu.addItem(clarifyHotkeyMenuItem)
         settingsSubmenu.addItem(languageMenuItem)
         settingsSubmenu.addItem(NSMenuItem.separator())
         settingsSubmenu.addItem(engineInfoItem)
@@ -671,9 +710,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func refreshHotkeyChecks() {
         hotkeyInfoItem.title = "Hotkey: \(controller.currentHotkeyDisplay)"
         clarifyHotkeyInfoItem.title = "Clarify Hotkey: \(controller.currentClarifyHotkeyDisplay)"
+        hotkeyMenuItem.title = "Hotkey: \(humanHotkeyLabel(controller.currentHotkeyDisplay))"
+        clarifyHotkeyMenuItem.title = "Clarify Hotkey: \(humanHotkeyLabel(controller.currentClarifyHotkeyDisplay))"
         hotkeyCtrlShiftSpaceItem.state = isCurrentHotkey("ctrl+shift+space") ? .on : .off
         hotkeyShiftOptionItem.state = isCurrentHotkey("shift+option") ? .on : .off
         hotkeyCmdShiftSpaceItem.state = isCurrentHotkey("cmd+shift+space") ? .on : .off
+        clarifyHotkeyCtrlShiftSpaceItem.state = isCurrentClarifyHotkey("ctrl+shift+space") ? .on : .off
+        clarifyHotkeyShiftOptionItem.state = isCurrentClarifyHotkey("shift+option") ? .on : .off
+        clarifyHotkeyCmdShiftSpaceItem.state = isCurrentClarifyHotkey("cmd+shift+space") ? .on : .off
     }
 
     private func isCurrentHotkey(_ combo: String) -> Bool {
@@ -682,6 +726,14 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         }
         return parsed.keyCode == controller.currentHotkey.keyCode &&
             parsed.modifiers == controller.currentHotkey.modifiers
+    }
+
+    private func isCurrentClarifyHotkey(_ combo: String) -> Bool {
+        guard let parsed = try? HotkeyParser.parse(combo: combo) else {
+            return false
+        }
+        return parsed.keyCode == controller.currentClarifyHotkey.keyCode &&
+            parsed.modifiers == controller.currentClarifyHotkey.modifiers
     }
 
     private func refreshLanguageChecks() {
@@ -908,11 +960,45 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     private func setHotkeyCombo(_ combo: String) {
         do {
             let parsed = try HotkeyParser.parse(combo: combo)
+            guard !hotkeysConflict(parsed, controller.currentClarifyHotkey) else {
+                lastEventItem.title = "Last event: [error] primary hotkey conflicts with clarify hotkey"
+                return
+            }
             controller.setHotkey(parsed)
             preferences.saveHotkey(parsed)
             refreshHotkeyChecks()
         } catch {
             lastEventItem.title = "Last event: [error] invalid hotkey \(combo)"
+        }
+    }
+
+    @objc
+    private func setClarifyHotkeyCtrlShiftSpace() {
+        setClarifyHotkeyCombo("ctrl+shift+space")
+    }
+
+    @objc
+    private func setClarifyHotkeyShiftOption() {
+        setClarifyHotkeyCombo("shift+option")
+    }
+
+    @objc
+    private func setClarifyHotkeyCmdShiftSpace() {
+        setClarifyHotkeyCombo("cmd+shift+space")
+    }
+
+    private func setClarifyHotkeyCombo(_ combo: String) {
+        do {
+            let parsed = try HotkeyParser.parse(combo: combo)
+            guard !hotkeysConflict(parsed, controller.currentHotkey) else {
+                lastEventItem.title = "Last event: [error] clarify hotkey conflicts with primary hotkey"
+                return
+            }
+            controller.setClarifyHotkey(parsed)
+            preferences.saveClarifyHotkey(parsed)
+            refreshHotkeyChecks()
+        } catch {
+            lastEventItem.title = "Last event: [error] invalid clarify hotkey \(combo)"
         }
     }
 
@@ -1137,8 +1223,8 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         titleLabel.font = NSFont.systemFont(ofSize: 24, weight: .semibold)
         stack.addArrangedSubview(titleLabel)
 
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.1"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2"
         let versionLabel = NSTextField(labelWithString: "Version \(version) (\(build))")
         versionLabel.textColor = .secondaryLabelColor
         stack.addArrangedSubview(versionLabel)
@@ -1290,6 +1376,10 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         return preferences.loadHotkey() ?? config.hotkey
     }
 
+    private static func resolveClarifyHotkey(preferences: AppPreferences) -> Hotkey {
+        preferences.loadClarifyHotkey() ?? AppController.defaultClarifyHotkeyValue
+    }
+
     private static func resolveLanguageSelection(config: CLIConfig, preferences: AppPreferences) -> String {
         if hasCLIFlag("--locale") {
             return config.localeIdentifier
@@ -1314,6 +1404,26 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         }
 
         return Locale.autoupdatingCurrent.identifier
+    }
+
+    private func hotkeysConflict(_ lhs: Hotkey, _ rhs: Hotkey) -> Bool {
+        lhs.keyCode == rhs.keyCode && lhs.modifiers == rhs.modifiers
+    }
+
+    private func humanHotkeyLabel(_ combo: String) -> String {
+        combo
+            .split(separator: "+")
+            .map { token in
+                switch token.lowercased() {
+                case "ctrl": return "Ctrl"
+                case "cmd": return "Cmd"
+                case "shift": return "Shift"
+                case "option": return "Option"
+                case "space": return "Space"
+                default: return String(token)
+                }
+            }
+            .joined(separator: "+")
     }
 
     private static func currentInputSourceLanguageCode() -> String? {
