@@ -29,10 +29,11 @@ enum PythonEnvironmentManager {
     }
 
     static func findSystemPython() -> URL? {
+        // Prefer Homebrew Python (newer, has MLX support) over system Python
         let candidates = [
-            "/usr/bin/python3",
             "/opt/homebrew/bin/python3",
-            "/usr/local/bin/python3"
+            "/usr/local/bin/python3",
+            "/usr/bin/python3"
         ]
         for path in candidates {
             let url = URL(fileURLWithPath: path)
