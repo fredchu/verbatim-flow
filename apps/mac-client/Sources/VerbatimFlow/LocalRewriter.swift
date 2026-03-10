@@ -6,8 +6,8 @@ struct LocalRewriteResult: Sendable {
 }
 
 enum LocalRewriter {
-    private static let defaultBaseURL = "http://localhost:1234"
-    private static let defaultModel = "qwen/qwen3-vl-8b"
+    private static let defaultBaseURL = "http://localhost:8000"
+    private static let defaultModel = "Qwen3.5-9B-MLX-4bit"
     private static let defaultSystemPrompt = """
         你是 VerbatimFlow 本地校正模式。
         將語音轉錄的口語文字改寫為通順的書面語。
@@ -17,7 +17,7 @@ enum LocalRewriter {
         - 去除口語贅詞（嗯、啊、然後、就是說、對、那個）和明顯重複。
         - 保持與輸入相同的語言（中文維持中文，中英混合維持混合）。
         - 使用台灣繁體中文用語和全形標點符號（，。！？；：）。
-        - 僅輸出改寫後的純文字，不要 markdown，不要解釋。 /no_think
+        - 僅輸出改寫後的純文字，不要 markdown，不要解釋。
         """
 
     static func rewrite(text: String, localeIdentifier: String) throws -> LocalRewriteResult {

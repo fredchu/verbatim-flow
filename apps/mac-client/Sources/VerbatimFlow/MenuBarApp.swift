@@ -207,7 +207,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     private let lastEventItem = NSMenuItem(title: "Last event: -", action: nil, keyEquivalent: "")
     private let permissionStatusItem = NSMenuItem(title: "Permissions: Checking...", action: nil, keyEquivalent: "")
-    private let permissionsMenuItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
+
 
     private let recentMenuItem = NSMenuItem(title: "Recent transcripts", action: nil, keyEquivalent: "")
     private let recentSubmenu = NSMenu(title: "Recent transcripts")
@@ -369,6 +369,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
     }
 
     private func setupMenu() {
+
         stateMenuItem.isEnabled = false
         engineInfoItem.isEnabled = false
         whisperModelInfoItem.isEnabled = false
@@ -381,19 +382,20 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         lastEventItem.isEnabled = false
         permissionStatusItem.isEnabled = false
 
+
         toggleMenuItem.target = self
 
-        formatOnlyModeItem.target = self
+formatOnlyModeItem.target = self
         clarifyModeItem.target = self
         localRewriteModeItem.target = self
 
-        let modeSubmenu = NSMenu(title: "Mode")
+let modeSubmenu = NSMenu(title: "Mode")
         modeSubmenu.addItem(formatOnlyModeItem)
         modeSubmenu.addItem(clarifyModeItem)
         modeSubmenu.addItem(localRewriteModeItem)
         modeMenuItem.submenu = modeSubmenu
 
-        engineAppleItem.target = self
+engineAppleItem.target = self
         engineWhisperItem.target = self
         engineOpenAIItem.target = self
         engineQwenItem.target = self
@@ -406,7 +408,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         engineSubmenu.addItem(engineMlxWhisperItem)
         engineMenuItem.submenu = engineSubmenu
 
-        qwenModelSmallItem.target = self
+qwenModelSmallItem.target = self
         qwenModelLargeItem.target = self
         let qwenModelSubmenu = NSMenu(title: "Qwen Model")
         qwenModelSubmenu.addItem(qwenModelSmallItem)
@@ -440,7 +442,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         whisperModelSubmenu.addItem(whisperModelLargeV3Item)
         whisperModelMenuItem.submenu = whisperModelSubmenu
 
-        hotkeyCtrlShiftSpaceItem.target = self
+hotkeyCtrlShiftSpaceItem.target = self
         hotkeyShiftOptionItem.target = self
         hotkeyCmdShiftSpaceItem.target = self
         clarifyHotkeyCtrlShiftSpaceItem.target = self
@@ -459,7 +461,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         clarifyHotkeySubmenu.addItem(clarifyHotkeyCmdShiftSpaceItem)
         clarifyHotkeyMenuItem.submenu = clarifyHotkeySubmenu
 
-        languageSystemItem.target = self
+languageSystemItem.target = self
         languageZhHansItem.target = self
         languageZhHantItem.target = self
         languageEnUSItem.target = self
@@ -471,12 +473,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         languageSubmenu.addItem(languageEnUSItem)
         languageMenuItem.submenu = languageSubmenu
 
-        copyLatestTranscriptItem.target = self
+copyLatestTranscriptItem.target = self
         copyAndRollbackItem.target = self
         retryLastFailedAudioItem.target = self
         recentMenuItem.submenu = recentSubmenu
 
-        requestPermissionsItem.target = self
+requestPermissionsItem.target = self
         openAccessibilityItem.target = self
         openMicItem.target = self
         openSpeechItem.target = self
@@ -487,15 +489,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         llmSettingsItem.target = self
         aboutMenuItem.target = self
 
-        let permissionsSubmenu = NSMenu(title: "Permissions")
-        permissionsSubmenu.addItem(requestPermissionsItem)
-        permissionsSubmenu.addItem(openAccessibilityItem)
-        permissionsSubmenu.addItem(openInputMonitoringItem)
-        permissionsSubmenu.addItem(openMicItem)
-        permissionsSubmenu.addItem(openSpeechItem)
-        permissionsMenuItem.submenu = permissionsSubmenu
-
-        let settingsSubmenu = NSMenu(title: "Settings")
+let settingsSubmenu = NSMenu(title: "Settings")
         settingsSubmenu.addItem(modeMenuItem)
         settingsSubmenu.addItem(engineMenuItem)
         settingsSubmenu.addItem(whisperModelMenuItem)
@@ -529,7 +523,7 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
         quitItem.target = self
 
-        menu.addItem(stateMenuItem)
+menu.addItem(stateMenuItem)
         menu.addItem(lastEventItem)
         menu.addItem(permissionStatusItem)
         menu.addItem(NSMenuItem.separator())

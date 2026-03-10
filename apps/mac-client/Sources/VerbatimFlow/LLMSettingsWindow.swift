@@ -6,11 +6,11 @@ final class LLMSettingsWindow: NSWindow {
 
     // MARK: - Default values
 
-    static let defaultBaseURL = "http://localhost:1234"
-    static let defaultPunctuationModel = "qwen/qwen3-vl-8b"
+    static let defaultBaseURL = "http://localhost:8000"
+    static let defaultPunctuationModel = "Qwen3.5-9B-MLX-4bit"
     static let defaultPunctuationPrompt =
-        "你是標點符號專家。請為以下中文語音辨識文字加上適當的全形標點符號（，。、？！：；「」『』《》）。只加標點，不改動任何文字內容。直接輸出結果，不要解釋。/no_think"
-    static let defaultRewriteModel = "qwen/qwen3-vl-8b"
+        "你是標點符號專家。請為以下中文語音辨識文字加上適當的全形標點符號（，。、？！：；「」『』《》）。只加標點，不改動任何文字內容。直接輸出結果，不要解釋。"
+    static let defaultRewriteModel = "Qwen3.5-9B-MLX-4bit"
     static let defaultRewritePrompt = """
         你是 VerbatimFlow 本地校正模式。
         將語音轉錄的口語文字改寫為通順的書面語。
@@ -20,7 +20,7 @@ final class LLMSettingsWindow: NSWindow {
         - 去除口語贅詞（嗯、啊、然後、就是說、對、那個）和明顯重複。
         - 保持與輸入相同的語言（中文維持中文，中英混合維持混合）。
         - 使用台灣繁體中文用語和全形標點符號（，。！？；：）。
-        - 僅輸出改寫後的純文字，不要 markdown，不要解釋。 /no_think
+        - 僅輸出改寫後的純文字，不要 markdown，不要解釋。
         """
 
     // MARK: - UI controls
