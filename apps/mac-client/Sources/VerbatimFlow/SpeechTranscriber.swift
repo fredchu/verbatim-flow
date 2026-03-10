@@ -1061,6 +1061,11 @@ final class SpeechTranscriber {
         if let prompt = llmPrefs.loadPunctuationPrompt(), !prompt.isEmpty {
             env["VERBATIMFLOW_LLM_PROMPT"] = prompt
         }
+        // Skip LLM punctuation in Python when Swift-side LocalRewriter will handle it.
+        let currentMode = llmPrefs.loadMode() ?? .raw
+        if currentMode == .localRewrite || currentMode == .clarify {
+            env["VERBATIMFLOW_SKIP_LLM_PUNCTUATION"] = "1"
+        }
         process.environment = env
 
         process.standardOutput = outputPipe

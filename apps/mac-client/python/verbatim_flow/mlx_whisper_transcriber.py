@@ -219,7 +219,9 @@ class MlxWhisperTranscriber:
                 text = _convert_s2t(text)
 
         # Add punctuation for models that don't output it natively.
-        if _is_native_traditional(self.model_name) and text:
+        # Skip when Swift-side LLM rewriter (LocalRewriter/ClarifyRewriter) will handle punctuation.
+        if (_is_native_traditional(self.model_name) and text
+                and not os.environ.get("VERBATIMFLOW_SKIP_LLM_PUNCTUATION")):
             text = _add_punctuation(text)
 
         return TranscriptResult(text=text)
