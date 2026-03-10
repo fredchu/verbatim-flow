@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import Foundation
+import UserNotifications
 
 @MainActor
 final class MenuBarApp: NSObject, NSApplicationDelegate {
@@ -345,6 +346,12 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
         setupMenu()
         bindControllerCallbacks()
 
+        PythonEnvironmentManager.ensureReady { [weak self] status in
+            DispatchQueue.main.async {
+                self?.handlePythonEnvStatus(status)
+            }
+        }
+
         controller.setClarifyHotkey(initialClarifyHotkey)
         controller.start()
         refreshModeChecks()
@@ -357,6 +364,50 @@ final class MenuBarApp: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         controller.stop()
+    }
+
+    private func handlePythonEnvStatus(_ status: PythonEnvStatus) {
+        switch status {
+        case .ready:
+            stateMenuItem.title = "State: Ready"
+        case .setting(let message):
+            stateMenuItem.title = "State: \(message)"
+            sendNotification(title: "VerbatimFlow", body: message)
+        case .failed(let message):
+            stateMenuItem.title = "State: Python setup failed"
+            showAlert(
+                title: "Python Setup Failed",
+                message: "\(message)\n\nApple speech engine still works without Python.",
+                style: .warning
+            )
+        case .noPython:
+            showAlert(
+                title: "Python 3 Not Found",
+                message: "Python 3 is required for Whisper-based engines.\n\nYou can install it via:\n  xcode-select --install\nor download from python.org.",
+                style: .warning
+            )
+        }
+    }
+
+    private func sendNotification(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func showAlert(title: String, message: String, style: NSAlert.Style) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = style
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     private func setupStatusItem() {
