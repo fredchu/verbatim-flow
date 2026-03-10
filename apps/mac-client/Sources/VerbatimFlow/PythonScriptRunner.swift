@@ -43,17 +43,22 @@ enum PythonScriptRunner {
         return nil
     }
 
-    /// Find the Python executable (venv preferred, system fallback).
+    /// Find the Python executable (venv preferred, no system python fallback).
     static func resolvePythonExecutable(scriptURL: URL) -> URL? {
         let fileManager = FileManager.default
 
         var candidates = [URL]()
 
-        // 1. venv adjacent to the script's python root (works in source tree)
+        // 1. Developer override via environment variable
+        if let envPath = ProcessInfo.processInfo.environment["VERBATIMFLOW_PYTHON_PATH"] {
+            candidates.append(URL(fileURLWithPath: envPath))
+        }
+
+        // 2. venv adjacent to the script's python root (works in source tree)
         let pythonRoot = scriptURL.deletingLastPathComponent().deletingLastPathComponent()
         candidates.append(pythonRoot.appendingPathComponent(".venv/bin/python"))
 
-        // 2. exec-relative: walk from Contents/MacOS back to source tree
+        // 3. exec-relative: walk from Contents/MacOS back to source tree
         if let execURL = Bundle.main.executableURL {
             let macosDir = execURL.deletingLastPathComponent()
             candidates.append(
@@ -61,21 +66,14 @@ enum PythonScriptRunner {
             )
         }
 
-        // 3. User-configured Python path via environment variable
-        if let envPath = ProcessInfo.processInfo.environment["VERBATIMFLOW_PYTHON_PATH"] {
-            candidates.append(URL(fileURLWithPath: envPath))
-        }
+        // 4. On-demand venv in ~/Library/Application Support/VerbatimFlow/
+        candidates.append(PythonEnvironmentManager.appSupportPythonURL)
 
         for candidate in candidates {
             let resolved = candidate.standardizedFileURL
             if fileManager.fileExists(atPath: resolved.path) {
                 return resolved
             }
-        }
-
-        let systemPython = URL(fileURLWithPath: "/usr/bin/python3")
-        if fileManager.fileExists(atPath: systemPython.path) {
-            return systemPython
         }
 
         return nil
