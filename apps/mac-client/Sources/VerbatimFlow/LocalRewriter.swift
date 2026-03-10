@@ -34,11 +34,13 @@ enum LocalRewriter {
         let systemPrompt = prefs.loadLocalRewritePrompt()?.isEmpty == false
             ? prefs.loadLocalRewritePrompt()! : defaultSystemPrompt
 
+        let fullSystemPrompt = systemPrompt + "\n當前語言：\(localeIdentifier)"
+
         let payload: [String: Any] = [
             "model": model,
             "messages": [
-                ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": "locale=\(localeIdentifier)\n\n" + trimmed]
+                ["role": "system", "content": fullSystemPrompt],
+                ["role": "user", "content": trimmed]
             ],
             "stream": false,
             "temperature": 0.1,
