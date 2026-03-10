@@ -63,6 +63,11 @@ if [[ -d "$PYTHON_PACKAGE_DIR" ]]; then
   ditto "$PYTHON_PACKAGE_DIR" "$SIGNING_APP_BUNDLE/Contents/Resources/python/verbatim_flow"
 fi
 
+# Bundle requirements.txt for on-demand venv setup
+if [[ -f "$NATIVE_DIR/python/requirements.txt" ]]; then
+  cp "$NATIVE_DIR/python/requirements.txt" "$SIGNING_APP_BUNDLE/Contents/Resources/python/requirements.txt"
+fi
+
 cat > "$SIGNING_APP_BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
